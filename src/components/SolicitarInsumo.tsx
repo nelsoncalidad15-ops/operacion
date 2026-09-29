@@ -112,7 +112,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
 
   const filteredInsumos = useMemo(() => {
     if (!searchQuery.trim()) {
-      return insumosList.slice(0, 12);
+      return insumosList;
     }
     const q = searchQuery.toLowerCase();
     return insumosList.filter(
@@ -350,7 +350,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
 
               {/* Autocomplete list */}
               {isDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-md z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {isLoadingData ? (
                     <div className="p-3 text-center text-xs text-slate-400">Cargando...</div>
                   ) : filteredInsumos.length === 0 ? (
