@@ -7,6 +7,7 @@ import { StockTable } from './components/StockTable';
 import { Ingresos } from './components/Ingresos';
 import { UltimosMovimientos } from './components/UltimosMovimientos';
 import { PinLoginModal } from './components/PinLoginModal';
+import { Administrar } from './components/Administrar';
 import { AuthSession } from './types';
 import { api } from './services/api';
 
@@ -87,6 +88,7 @@ export default function App() {
         )}
 
         {session && activeTab === 'movimientos' && <UltimosMovimientos />}
+        {session && activeTab === 'administrar' && <Administrar session={session} />}
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-3 px-4 text-xs text-slate-500">

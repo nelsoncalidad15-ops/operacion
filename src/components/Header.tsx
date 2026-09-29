@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { AuthSession } from '../types';
 
-export type AppTab = 'solicitar' | 'dashboard' | 'autorizaciones' | 'stock' | 'ingresos' | 'movimientos';
+export type AppTab = 'solicitar' | 'dashboard' | 'autorizaciones' | 'stock' | 'ingresos' | 'movimientos' | 'administrar';
 
 interface HeaderProps {
   activeTab: AppTab;
@@ -125,6 +125,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Historial
                 </button>
+                <button onClick={() => setActiveTab('administrar')} className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'administrar' ? 'bg-slate-900 text-white font-semibold' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}>Administrar</button>
               </>
             )}
           </nav>
@@ -209,6 +210,7 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Historial
             </button>
+            <button onClick={() => setActiveTab('administrar')} className={`px-2.5 py-1 text-xs rounded whitespace-nowrap ${activeTab === 'administrar' ? 'bg-slate-900 text-white font-medium' : 'text-slate-600'}`}>Administrar</button>
           </div>
         )}
       </div>

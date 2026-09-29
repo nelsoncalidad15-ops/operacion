@@ -102,6 +102,14 @@ function handleRequest(e) {
         result = crearRespuesta(true, insumos);
         break;
 
+      case 'guardarInsumo':
+        result = guardarInsumo(payload, payload.token);
+        break;
+
+      case 'guardarColaborador':
+        result = guardarColaborador(payload, payload.token);
+        break;
+
       case 'getStock':
         var stock = obtenerStock(payload.provincia);
         result = crearRespuesta(true, stock);

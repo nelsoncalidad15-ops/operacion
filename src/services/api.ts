@@ -269,6 +269,16 @@ class ApiService {
     };
   }
 
+  public async guardarInsumo(item: Insumo, token: string): Promise<ApiResponse<Insumo>> {
+    if (this.isLiveConnected()) return this.callAppsScript<Insumo>('guardarInsumo', { ...item, token });
+    const items = this.getStoredInsumos();
+    const index = items.findIndex((i) => i.id === item.id);
+    const saved = { ...item, id: item.id || `INS-${String(items.length + 1).padStart(3, '0')}` };
+    if (index >= 0) items[index] = saved; else items.push(saved);
+    this.setStoredInsumos(items);
+    return { ok: true, data: saved };
+  }
+
   // ==========================================
   // COLABORADORES
   // ==========================================
@@ -292,6 +302,12 @@ class ApiService {
     } catch {
       return { ok: true, data: COLABORADORES };
     }
+  }
+
+  public async guardarColaborador(colab: Colaborador, token: string, nombreOriginal = ''): Promise<ApiResponse<Colaborador>> {
+    if (this.isLiveConnected()) return this.callAppsScript<Colaborador>('guardarColaborador', { ...colab, nombreOriginal, activo: 'Sí', token });
+    this.saveColaborador(colab);
+    return { ok: true, data: colab };
   }
 
   public getRecentColaboradores(provincia?: string): Colaborador[] {
