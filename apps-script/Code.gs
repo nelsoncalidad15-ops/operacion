@@ -545,6 +545,27 @@ function cargarDatosInicialesAutosol() {
   return 'Inventario y colaboradores de Autosol cargados correctamente.';
 }
 
+/**
+ * Repara una carga inicial cuyos movimientos hayan quedado vinculados a IDs anteriores.
+ * Sólo elimina movimientos marcados CARGA-INICIAL-AUTOSOL; no toca movimientos reales.
+ */
+function repararStockInicialAutosol() {
+  var ss = getSpreadsheet();
+  var hojaIngresos = ss.getSheetByName(CONFIG.HOJAS.INGRESOS);
+  if (!hojaIngresos) throw new Error('No existe la hoja INGRESOS.');
+
+  var data = hojaIngresos.getDataRange().getValues();
+  for (var fila = data.length - 1; fila >= 1; fila--) {
+    if (String(data[fila][10]).trim() === 'CARGA-INICIAL-AUTOSOL') {
+      hojaIngresos.deleteRow(fila + 1);
+    }
+  }
+
+  var resultado = cargarDatosInicialesAutosol();
+  recalcularStockCompleto();
+  return resultado + ' Vínculos de stock reparados.';
+}
+
 // ============================================================================
 // Auth.gs
 // ============================================================================

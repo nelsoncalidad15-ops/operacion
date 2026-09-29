@@ -24,6 +24,8 @@ const STORAGE_KEY_COLABORADORES = 'ci_colaboradores_v1';
 const STORAGE_KEY_RECENT_COLABORADORES = 'ci_recent_colaboradores_v1';
 const STORAGE_KEY_APPS_SCRIPT_URL = 'ci_apps_script_url';
 const STORAGE_KEY_SESSION = 'ci_auth_session';
+const PRODUCTION_API_URL =
+  'https://script.google.com/macros/s/AKfycbwcdcy9SmmfloEJBB5Bp9EF398VzITWn2BPmNlG0BMoJw8D_rZRw9JFS10rQtxSoUbfYA/exec';
 
 class ApiService {
   private appsScriptUrl: string = '';
@@ -32,7 +34,7 @@ class ApiService {
     this.appsScriptUrl =
       (import.meta.env.VITE_APPS_SCRIPT_URL as string) ||
       localStorage.getItem(STORAGE_KEY_APPS_SCRIPT_URL) ||
-      '';
+      PRODUCTION_API_URL;
     this.initLocalStorage();
   }
 
