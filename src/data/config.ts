@@ -2,16 +2,7 @@ import { Insumo, Ingreso, Salida, Colaborador } from '../types';
 
 export const PROVINCIAS: string[] = ['Jujuy', 'Salta'];
 
-export const SECTORES: string[] = [
-  'Taller',
-  'Lavadero',
-  'Repuestos',
-  'Administración',
-  'Ventas',
-  'Calidad',
-  'Logística',
-  'Mantenimiento',
-];
+export const SECTORES: string[] = ['Taller', 'Lavadero'];
 
 export const COLABORADORES: Colaborador[] = [
   // Jujuy
@@ -19,20 +10,9 @@ export const COLABORADORES: Colaborador[] = [
   { nombre: 'Carlos Quispe', sector: 'Taller', provincia: 'Jujuy' },
   { nombre: 'Esteban Martínez', sector: 'Lavadero', provincia: 'Jujuy' },
   { nombre: 'Franco Alarcón', sector: 'Lavadero', provincia: 'Jujuy' },
-  { nombre: 'María Elena Morales', sector: 'Repuestos', provincia: 'Jujuy' },
-  { nombre: 'Luciana Farfán', sector: 'Administración', provincia: 'Jujuy' },
-  { nombre: 'Gonzalo Burgos', sector: 'Ventas', provincia: 'Jujuy' },
-  { nombre: 'Nelson Albarracín', sector: 'Calidad', provincia: 'Jujuy' },
-  { nombre: 'Jorge Mamani', sector: 'Mantenimiento', provincia: 'Jujuy' },
-  { nombre: 'Nicolás Cruz', sector: 'Logística', provincia: 'Jujuy' },
-
   // Salta
   { nombre: 'Gustavo Benítez', sector: 'Taller', provincia: 'Salta' },
   { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' },
-  { nombre: 'Ramiro Figueroa', sector: 'Repuestos', provincia: 'Salta' },
-  { nombre: 'Carla Vaca', sector: 'Administración', provincia: 'Salta' },
-  { nombre: 'Pablo Guantay', sector: 'Calidad', provincia: 'Salta' },
-  { nombre: 'Diego Saravia', sector: 'Mantenimiento', provincia: 'Salta' },
 ];
 
 export const INITIAL_INSUMOS: Insumo[] = [

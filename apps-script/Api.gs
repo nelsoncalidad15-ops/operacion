@@ -52,27 +52,20 @@ function handleRequest(e) {
         break;
 
       case 'getColaboradores':
-        var colabs = CONFIG.COLABORADORES || [];
         var ssColab = getSpreadsheet();
-        var hojaSalidasColab = ssColab.getSheetByName(CONFIG.HOJAS.SALIDAS);
-        if (hojaSalidasColab && hojaSalidasColab.getLastRow() > 1) {
-          var salDataColab = hojaSalidasColab.getDataRange().getValues();
-          var colabSet = {};
-          for (var c = 0; c < colabs.length; c++) {
-            colabSet[colabs[c].nombre + '_' + colabs[c].provincia.toLowerCase()] = colabs[c];
-          }
-          for (var sc = 1; sc < salDataColab.length; sc++) {
-            var nCol = String(salDataColab[sc][6] || '').trim();
-            var sCol = String(salDataColab[sc][3] || '').trim();
-            var pCol = String(salDataColab[sc][2] || '').trim();
-            if (nCol && pCol) {
-              var kCol = nCol + '_' + pCol.toLowerCase();
-              if (!colabSet[kCol]) {
-                colabSet[kCol] = { nombre: nCol, sector: sCol, provincia: pCol };
-              }
+        var hojaColaboradores = ssColab.getSheetByName(CONFIG.HOJAS.COLABORADORES);
+        var colabs = [];
+        if (hojaColaboradores && hojaColaboradores.getLastRow() > 1) {
+          var colabData = hojaColaboradores.getDataRange().getValues();
+          for (var c = 1; c < colabData.length; c++) {
+            var nombreColab = String(colabData[c][0] || '').trim();
+            var sectorColab = String(colabData[c][1] || '').trim();
+            var provinciaColab = String(colabData[c][2] || '').trim();
+            var activoColab = String(colabData[c][3] || '').trim().toLowerCase();
+            if (nombreColab && (activoColab === 'sí' || activoColab === 'si')) {
+              colabs.push({ nombre: nombreColab, sector: sectorColab, provincia: provinciaColab });
             }
           }
-          colabs = Object.keys(colabSet).map(function(k) { return colabSet[k]; });
         }
         if (payload.provincia) {
           colabs = colabs.filter(function(c) {

@@ -4,9 +4,10 @@
  */
 
 var CONFIG = {
-  // Nombres de las cuatro hojas del sistema
+  // Nombres de las hojas del sistema
   HOJAS: {
     INSUMOS: 'INSUMOS',
+    COLABORADORES: 'COLABORADORES',
     INGRESOS: 'INGRESOS',
     SALIDAS: 'SALIDAS',
     STOCK: 'STOCK'
@@ -19,16 +20,7 @@ var CONFIG = {
   PROVINCIAS: ['Jujuy', 'Salta'],
 
   // Sectores de la empresa
-  SECTORES: [
-    'Taller',
-    'Lavadero',
-    'Repuestos',
-    'Administración',
-    'Ventas',
-    'Calidad',
-    'Logística',
-    'Mantenimiento'
-  ],
+  SECTORES: ['Taller', 'Lavadero'],
 
   // Lista base de Colaboradores
   COLABORADORES: [
@@ -36,18 +28,8 @@ var CONFIG = {
     { nombre: 'Carlos Quispe', sector: 'Taller', provincia: 'Jujuy' },
     { nombre: 'Esteban Martínez', sector: 'Lavadero', provincia: 'Jujuy' },
     { nombre: 'Franco Alarcón', sector: 'Lavadero', provincia: 'Jujuy' },
-    { nombre: 'María Elena Morales', sector: 'Repuestos', provincia: 'Jujuy' },
-    { nombre: 'Luciana Farfán', sector: 'Administración', provincia: 'Jujuy' },
-    { nombre: 'Gonzalo Burgos', sector: 'Ventas', provincia: 'Jujuy' },
-    { nombre: 'Nelson Albarracín', sector: 'Calidad', provincia: 'Jujuy' },
-    { nombre: 'Jorge Mamani', sector: 'Mantenimiento', provincia: 'Jujuy' },
-    { nombre: 'Nicolás Cruz', sector: 'Logística', provincia: 'Jujuy' },
     { nombre: 'Gustavo Benítez', sector: 'Taller', provincia: 'Salta' },
-    { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' },
-    { nombre: 'Ramiro Figueroa', sector: 'Repuestos', provincia: 'Salta' },
-    { nombre: 'Carla Vaca', sector: 'Administración', provincia: 'Salta' },
-    { nombre: 'Pablo Guantay', sector: 'Calidad', provincia: 'Salta' },
-    { nombre: 'Diego Saravia', sector: 'Mantenimiento', provincia: 'Salta' }
+    { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' }
   ],
 
   // Duración de la sesión de responsable (en segundos) para CacheService

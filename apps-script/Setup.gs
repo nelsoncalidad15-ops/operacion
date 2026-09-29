@@ -31,6 +31,13 @@ function setupSistemaInsumos() {
         ['INS-008', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Salta', 6, 20, 'Sí']
       ]
     },
+    COLABORADORES: {
+      nombre: CONFIG.HOJAS.COLABORADORES,
+      columnas: ['Nombre', 'Sector', 'Provincia', 'Activo'],
+      ejemplos: CONFIG.COLABORADORES.map(function(colaborador) {
+        return [colaborador.nombre, colaborador.sector, colaborador.provincia, 'Sí'];
+      })
+    },
     INGRESOS: {
       nombre: CONFIG.HOJAS.INGRESOS,
       columnas: [

@@ -192,9 +192,9 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
   };
 
   return (
-    <div className="max-w-xl mx-auto py-8 px-4">
+    <div className="w-full max-w-3xl mx-auto px-4 py-4 sm:py-6 min-h-[calc(100dvh-7rem)] flex items-center">
       {successData ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-6 text-center shadow-xs">
+        <div className="w-full bg-white border border-slate-200 rounded-2xl p-7 text-center shadow-sm">
           <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-3">
             <CheckCircle2 className="w-6 h-6" />
           </div>
@@ -231,14 +231,14 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
           </button>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+        <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
           {/* Header */}
-          <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h1 className="text-base font-bold text-slate-900">
+              <h1 className="text-xl font-bold text-slate-900">
                 Retiro de Insumos
               </h1>
-              <p className="text-xs text-slate-500">
+              <p className="text-sm text-slate-500">
                 Seleccioná operario, insumo y cantidad requerida.
               </p>
             </div>
@@ -250,7 +250,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                   key={p}
                   type="button"
                   onClick={() => setProvincia(p)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
+                  className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                     provincia === p ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
                   }`}
                 >
@@ -261,11 +261,11 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
             {/* Operario & Sector */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Operario
                 </label>
                 <select
@@ -275,7 +275,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                     const colab = colaboradoresList.find((c) => c.nombre === e.target.value);
                     if (colab) setSector(colab.sector);
                   }}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
+                  className="w-full text-base py-2.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
                   required
                 >
                   <option value="">-- Seleccionar --</option>
@@ -288,13 +288,13 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
                   Sector
                 </label>
                 <select
                   value={sector}
                   onChange={(e) => setSector(e.target.value)}
-                  className="w-full text-xs py-2 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
+                  className="w-full text-base py-2.5 px-3 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
                   required
                 >
                   {SECTORES.map((s) => (
@@ -309,7 +309,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
             {/* Insumo Search */}
             <div className="relative" ref={dropdownRef}>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-medium text-slate-700">
+                <label className="text-sm font-medium text-slate-700">
                   Insumo
                 </label>
                 {currentInsumo && (
@@ -333,7 +333,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                     }
                   }}
                   placeholder="Buscar insumo..."
-                  className="w-full text-xs py-2 pl-3 pr-8 rounded-lg border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
+                  className="w-full text-base py-2.5 pl-3 pr-9 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:border-slate-400"
                 />
                 {selectedInsumoId ? (
                   <button
@@ -388,7 +388,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
 
             {/* Cantidad */}
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Cantidad
               </label>
               <div className="flex items-center gap-2">
@@ -437,7 +437,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
             <button
               type="submit"
               disabled={isSubmitting || !selectedInsumoId || stockDisponible <= 0}
-              className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
             >
               <span>{isSubmitting ? 'Enviando...' : 'Solicitar Insumo'}</span>
               <ArrowRight className="w-3.5 h-3.5" />

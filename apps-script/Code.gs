@@ -8,9 +8,10 @@
  */
 
 var CONFIG = {
-  // Nombres de las cuatro hojas del sistema
+  // Nombres de las hojas del sistema
   HOJAS: {
     INSUMOS: 'INSUMOS',
+    COLABORADORES: 'COLABORADORES',
     INGRESOS: 'INGRESOS',
     SALIDAS: 'SALIDAS',
     STOCK: 'STOCK'
@@ -23,16 +24,7 @@ var CONFIG = {
   PROVINCIAS: ['Jujuy', 'Salta'],
 
   // Sectores de la empresa
-  SECTORES: [
-    'Taller',
-    'Lavadero',
-    'Repuestos',
-    'Administración',
-    'Ventas',
-    'Calidad',
-    'Logística',
-    'Mantenimiento'
-  ],
+  SECTORES: ['Taller', 'Lavadero'],
 
   // Lista base de Colaboradores
   COLABORADORES: [
@@ -40,18 +32,8 @@ var CONFIG = {
     { nombre: 'Carlos Quispe', sector: 'Taller', provincia: 'Jujuy' },
     { nombre: 'Esteban Martínez', sector: 'Lavadero', provincia: 'Jujuy' },
     { nombre: 'Franco Alarcón', sector: 'Lavadero', provincia: 'Jujuy' },
-    { nombre: 'María Elena Morales', sector: 'Repuestos', provincia: 'Jujuy' },
-    { nombre: 'Luciana Farfán', sector: 'Administración', provincia: 'Jujuy' },
-    { nombre: 'Gonzalo Burgos', sector: 'Ventas', provincia: 'Jujuy' },
-    { nombre: 'Nelson Albarracín', sector: 'Calidad', provincia: 'Jujuy' },
-    { nombre: 'Jorge Mamani', sector: 'Mantenimiento', provincia: 'Jujuy' },
-    { nombre: 'Nicolás Cruz', sector: 'Logística', provincia: 'Jujuy' },
     { nombre: 'Gustavo Benítez', sector: 'Taller', provincia: 'Salta' },
-    { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' },
-    { nombre: 'Ramiro Figueroa', sector: 'Repuestos', provincia: 'Salta' },
-    { nombre: 'Carla Vaca', sector: 'Administración', provincia: 'Salta' },
-    { nombre: 'Pablo Guantay', sector: 'Calidad', provincia: 'Salta' },
-    { nombre: 'Diego Saravia', sector: 'Mantenimiento', provincia: 'Salta' }
+    { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' }
   ],
 
   // Duración de la sesión de responsable (en segundos) para CacheService
@@ -214,6 +196,13 @@ function setupSistemaInsumos() {
         ['INS-007', 'Limpieza', 'Shampoo vehículos', 'Litros', 'Salta', 8, 25, 'Sí'],
         ['INS-008', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Salta', 6, 20, 'Sí']
       ]
+    },
+    COLABORADORES: {
+      nombre: CONFIG.HOJAS.COLABORADORES,
+      columnas: ['Nombre', 'Sector', 'Provincia', 'Activo'],
+      ejemplos: CONFIG.COLABORADORES.map(function(colaborador) {
+        return [colaborador.nombre, colaborador.sector, colaborador.provincia, 'Sí'];
+      })
     },
     INGRESOS: {
       nombre: CONFIG.HOJAS.INGRESOS,
@@ -1274,27 +1263,20 @@ function handleRequest(e) {
         break;
 
       case 'getColaboradores':
-        var colabs = CONFIG.COLABORADORES || [];
         var ssColab = getSpreadsheet();
-        var hojaSalidasColab = ssColab.getSheetByName(CONFIG.HOJAS.SALIDAS);
-        if (hojaSalidasColab && hojaSalidasColab.getLastRow() > 1) {
-          var salDataColab = hojaSalidasColab.getDataRange().getValues();
-          var colabSet = {};
-          for (var c = 0; c < colabs.length; c++) {
-            colabSet[colabs[c].nombre + '_' + colabs[c].provincia.toLowerCase()] = colabs[c];
-          }
-          for (var sc = 1; sc < salDataColab.length; sc++) {
-            var nCol = String(salDataColab[sc][6] || '').trim();
-            var sCol = String(salDataColab[sc][3] || '').trim();
-            var pCol = String(salDataColab[sc][2] || '').trim();
-            if (nCol && pCol) {
-              var kCol = nCol + '_' + pCol.toLowerCase();
-              if (!colabSet[kCol]) {
-                colabSet[kCol] = { nombre: nCol, sector: sCol, provincia: pCol };
-              }
+        var hojaColaboradores = ssColab.getSheetByName(CONFIG.HOJAS.COLABORADORES);
+        var colabs = [];
+        if (hojaColaboradores && hojaColaboradores.getLastRow() > 1) {
+          var colabData = hojaColaboradores.getDataRange().getValues();
+          for (var c = 1; c < colabData.length; c++) {
+            var nombreColab = String(colabData[c][0] || '').trim();
+            var sectorColab = String(colabData[c][1] || '').trim();
+            var provinciaColab = String(colabData[c][2] || '').trim();
+            var activoColab = String(colabData[c][3] || '').trim().toLowerCase();
+            if (nombreColab && (activoColab === 'sí' || activoColab === 'si')) {
+              colabs.push({ nombre: nombreColab, sector: sectorColab, provincia: provinciaColab });
             }
           }
-          colabs = Object.keys(colabSet).map(function(k) { return colabSet[k]; });
         }
         if (payload.provincia) {
           colabs = colabs.filter(function(c) {
