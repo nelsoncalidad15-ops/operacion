@@ -1,0 +1,6 @@
+{
+  "name": "Control de Insumos",
+  "description": "Sistema web empresarial de control de insumos, solicitudes, autorizaciones con PIN y cálculo de stock con Google Sheets y Google Apps Script.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
