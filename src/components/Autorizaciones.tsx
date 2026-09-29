@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { Salida, AuthSession, StockItem } from '../types';
 import { api } from '../services/api';
-import { PROVINCIAS, DEMO_RESPONSABLES } from '../data/config';
+import { PROVINCIAS } from '../data/config';
 
 interface AutorizacionesProps {
   session: AuthSession | null;
@@ -161,16 +161,6 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
             </button>
           </form>
 
-          <div className="mt-5 pt-4 border-t border-slate-100 text-left text-xs text-slate-500">
-            <span className="font-medium text-slate-700 block mb-1">PINs de prueba:</span>
-            <div className="space-y-0.5">
-              {Object.entries(DEMO_RESPONSABLES).map(([pin, nombre]) => (
-                <div key={pin} onClick={() => setPinInput(pin)} className="cursor-pointer hover:text-slate-900">
-                  {pin} · {nombre}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );

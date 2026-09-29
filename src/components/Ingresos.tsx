@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Insumo, TipoIngreso, AuthSession, Ingreso } from '../types';
-import { PROVINCIAS, DEMO_RESPONSABLES } from '../data/config';
+import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
 
 interface IngresosProps {
@@ -176,16 +176,6 @@ export const Ingresos: React.FC<IngresosProps> = ({
             </button>
           </form>
 
-          <div className="mt-5 pt-4 border-t border-slate-100 text-left text-xs text-slate-500">
-            <span className="font-medium text-slate-700 block mb-1">PINs autorizados:</span>
-            <div className="space-y-0.5">
-              {Object.entries(DEMO_RESPONSABLES).map(([pin, nombre]) => (
-                <div key={pin} onClick={() => setPinInput(pin)} className="cursor-pointer hover:text-slate-900">
-                  {pin} · {nombre}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );

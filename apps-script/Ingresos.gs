@@ -99,10 +99,17 @@ function registrarIngreso(payload, token) {
     return crearRespuesta(true, {
       idMovimiento: idMovimiento,
       fechaHora: fechaHora,
+      provincia: provincia,
+      idInsumo: idInsumo,
       insumo: insumoNombre,
       cantidad: cantidad,
+      precioUnitario: precioUnitario,
       total: total,
-      responsable: session.responsableNombre
+      proveedor: proveedor,
+      tipoIngreso: tipoIngreso,
+      comprobante: comprobante,
+      responsable: session.responsableNombre,
+      observaciones: observaciones
     }, 'Ingreso registrado con éxito. Total: $ ' + total);
 
   } finally {

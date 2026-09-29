@@ -784,9 +784,14 @@ function crearSolicitud(payload) {
     }, 'CANTIDAD NO DISPONIBLE. Solicitado: ' + cantidad + ' | Stock actual: ' + stockActual, 'STOCK_INSUFICIENTE');
   }
 
-  // Generar ID único
-  var idSolicitud = generarIdUnico('SAL', hojaSalidas);
-  var fechaHora = getFechaHoraActual();
+  // Bloquear brevemente la generación y escritura para evitar IDs duplicados.
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return crearRespuesta(false, null, 'El sistema está ocupado. Intentá nuevamente.', 'LOCK_TIMEOUT');
+  }
+
+  var idSolicitud = '';
+  var fechaHora = '';
 
   var nuevaFila = [
     idSolicitud,
@@ -807,14 +812,33 @@ function crearSolicitud(payload) {
     ''  // Motivo rechazo
   ];
 
-  hojaSalidas.appendRow(nuevaFila);
+  try {
+    idSolicitud = generarIdUnico('SAL', hojaSalidas);
+    fechaHora = getFechaHoraActual();
+    nuevaFila[0] = idSolicitud;
+    nuevaFila[1] = fechaHora;
+    hojaSalidas.appendRow(nuevaFila);
+  } finally {
+    lock.releaseLock();
+  }
 
   return crearRespuesta(true, {
     idSolicitud: idSolicitud,
-    fechaHora: fechaHora,
+    fechaHoraSolicitud: fechaHora,
+    provincia: provincia,
+    sector: sector,
+    idInsumo: idInsumo,
     insumo: insumoNombre,
-    cantidad: cantidad,
-    estado: 'PENDIENTE'
+    solicitante: solicitante,
+    cantidadSolicitada: cantidad,
+    cantidadAutorizada: 0,
+    autorizadoPor: '',
+    fechaHoraAutorizacion: '',
+    costoUnitario: 0,
+    valorSalida: 0,
+    estado: 'PENDIENTE',
+    observaciones: observaciones,
+    motivoRechazo: ''
   }, 'Solicitud registrada correctamente. Pendiente de autorización.');
 }
 
@@ -1154,10 +1178,17 @@ function registrarIngreso(payload, token) {
     return crearRespuesta(true, {
       idMovimiento: idMovimiento,
       fechaHora: fechaHora,
+      provincia: provincia,
+      idInsumo: idInsumo,
       insumo: insumoNombre,
       cantidad: cantidad,
+      precioUnitario: precioUnitario,
       total: total,
-      responsable: session.responsableNombre
+      proveedor: proveedor,
+      tipoIngreso: tipoIngreso,
+      comprobante: comprobante,
+      responsable: session.responsableNombre,
+      observaciones: observaciones
     }, 'Ingreso registrado con éxito. Total: $ ' + total);
 
   } finally {
