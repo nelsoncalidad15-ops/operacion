@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, RefreshCw } from 'lucide-react';
+import { Search, RefreshCw, FileText } from 'lucide-react';
 import { StockItem } from '../types';
 import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
+import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
 export const StockTable: React.FC = () => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
@@ -10,6 +11,7 @@ export const StockTable: React.FC = () => {
   const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedProvincia, setSelectedProvincia] = useState<string>('');
+  const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
 
   const loadStock = async () => {
     setIsLoading(true);
@@ -89,6 +91,15 @@ export const StockTable: React.FC = () => {
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
+
+          <button
+            onClick={() => setShowReporteModal(true)}
+            className="px-2.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold flex items-center gap-1 transition-colors"
+            title="Generar e imprimir orden de faltantes"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reporte Faltantes</span>
+          </button>
 
           <button
             onClick={handleRecalcular}
@@ -176,6 +187,14 @@ export const StockTable: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Modal de Reporte de Faltantes */}
+      <ReporteFaltantesModal
+        isOpen={showReporteModal}
+        onClose={() => setShowReporteModal(false)}
+        stockList={stockList}
+        provinciaFiltro={selectedProvincia}
+      />
     </div>
   );
 };
