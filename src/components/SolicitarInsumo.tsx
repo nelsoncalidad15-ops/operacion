@@ -109,6 +109,9 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
   }, [currentInsumo, stockMap]);
 
   const stockDisponible = currentStockItem ? currentStockItem.stockActual : 0;
+  const unidadActual = (currentInsumo?.unidad || '').trim().toLowerCase();
+  const esCantidadMedible = unidadActual === 'ml' || unidadActual === 'gramos';
+  const pasoCantidad = esCantidadMedible ? 100 : 1;
 
   const filteredInsumos = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -126,7 +129,9 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
     setSelectedInsumoId(item.id);
     setSearchQuery(item.insumo);
     setIsDropdownOpen(false);
-    setCantidad(1);
+    const stock = stockMap.get(item.id)?.stockActual || 0;
+    const unidad = item.unidad.trim().toLowerCase();
+    setCantidad(unidad === 'ml' || unidad === 'gramos' ? Math.min(100, stock || 100) : 1);
   };
 
   const handleClearInsumo = () => {
@@ -389,14 +394,14 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
             {/* Cantidad */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Cantidad
+                {esCantidadMedible ? `Cantidad a retirar (${currentInsumo?.unidad})` : 'Cantidad'}
               </label>
               <div className="flex items-center gap-2">
                 <div className="flex items-center border border-slate-200 rounded-lg">
                   <button
                     type="button"
-                    onClick={() => setCantidad((prev) => Math.max(1, prev - 1))}
-                    disabled={cantidad <= 1}
+                    onClick={() => setCantidad((prev) => Math.max(esCantidadMedible ? 1 : pasoCantidad, prev - pasoCantidad))}
+                    disabled={cantidad <= (esCantidadMedible ? 1 : pasoCantidad)}
                     className="px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
                   >
                     <Minus className="w-3.5 h-3.5" />
@@ -405,13 +410,14 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                     type="number"
                     min="1"
                     max={stockDisponible || 1}
+                    step="1"
                     value={cantidad}
-                    onChange={(e) => setCantidad(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-14 text-center font-mono font-medium text-xs py-1.5 focus:outline-none"
+                    onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))}
+                    className={`${esCantidadMedible ? 'w-24' : 'w-14'} text-center font-mono font-semibold text-sm py-2 focus:outline-none`}
                   />
                   <button
                     type="button"
-                    onClick={() => setCantidad((prev) => Math.min(stockDisponible || 1, prev + 1))}
+                    onClick={() => setCantidad((prev) => Math.min(stockDisponible || pasoCantidad, prev + pasoCantidad))}
                     disabled={cantidad >= stockDisponible || stockDisponible <= 0}
                     className="px-2.5 py-1.5 text-slate-600 hover:bg-slate-50 disabled:opacity-30"
                   >
@@ -420,11 +426,21 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                 </div>
 
                 {currentInsumo && (
-                  <span className="text-xs text-slate-500 font-mono">
+                  <span className="text-sm text-slate-600 font-mono font-semibold">
                     {currentInsumo.unidad}
                   </span>
                 )}
               </div>
+              {esCantidadMedible && currentInsumo && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {[100, 250, 500, 1000].filter((valor) => valor <= stockDisponible).map((valor) => (
+                    <button key={valor} type="button" onClick={() => setCantidad(valor)} className={`px-3 py-1.5 rounded-lg border text-xs font-mono ${cantidad === valor ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}>
+                      {valor} {currentInsumo.unidad}
+                    </button>
+                  ))}
+                  <span className="text-xs text-slate-500 self-center">Disponible: {stockDisponible.toLocaleString('es-AR')} {currentInsumo.unidad}</span>
+                </div>
+              )}
             </div>
 
             {errorMessage && (
