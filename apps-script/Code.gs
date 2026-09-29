@@ -440,6 +440,111 @@ function repararCodificacion() {
   return 'Textos corregidos correctamente.';
 }
 
+/**
+ * Agrega el inventario real entregado por Autosol sin borrar información previa.
+ * Es idempotente: puede ejecutarse nuevamente sin duplicar insumos ni stock inicial.
+ */
+function cargarDatosInicialesAutosol() {
+  var ss = getSpreadsheet();
+  var hojaInsumos = ss.getSheetByName(CONFIG.HOJAS.INSUMOS);
+  var hojaIngresos = ss.getSheetByName(CONFIG.HOJAS.INGRESOS);
+  var hojaColaboradores = ss.getSheetByName(CONFIG.HOJAS.COLABORADORES);
+
+  if (!hojaInsumos || !hojaIngresos || !hojaColaboradores) {
+    throw new Error('Primero ejecutá setupSistemaInsumos para crear las hojas.');
+  }
+
+  // nombre, cantidad inicial, unidad, valor total del lote, stock mínimo, sector/categoría
+  var catalogo = [
+    ['Rollo papel industrial', 2, 'Unidades', 30223, 3, 'Taller'],
+    ['Bolsas negras', 50, 'Unidades', 15365, 10, 'Taller'],
+    ['Bolsas amarillas', 70, 'Unidades', 21511, 10, 'Taller'],
+    ['Plomo adhesivo', 100, 'Unidades', 87933, 20, 'Taller'],
+    ['Gas R134a', 8000, 'Gramos', 196025, 2000, 'Taller'],
+    ['Aceite R134a', 800, 'ml', 17765, 200, 'Taller'],
+    ['Rost Off', 6, 'Unidades', 61885, 3, 'Taller'],
+    ['Carboff', 2, 'Unidades', 40828, 1, 'Taller'],
+    ['Grasa líquida', 3, 'Unidades', 30942, 3, 'Taller'],
+    ['Limpia contactos', 17, 'Unidades', 212007, 3, 'Taller'],
+    ['Desinfectante A/A', 6, 'Unidades', 74826, 2, 'Taller'],
+    ['Limpiador de frenos', 5, 'Unidades', 62500, 1, 'Taller'],
+    ['Gotita', 1, 'Unidades', 10714, 1, 'Taller'],
+    ['Sellador parabrisas', 0, 'Unidades', 0, 4, 'Taller'],
+    ['Sellador alta temperatura', 0, 'Unidades', 0, 1, 'Taller'],
+    ['Cinta de enmascarar', 8, 'Unidades', 25516, 3, 'Taller'],
+    ['Precintos', 120, 'Unidades', 12895, 10, 'Taller'],
+    ['Guantes moteados', 11, 'Pares', 10648, 5, 'Taller'],
+    ['Guantes de nitrilo', 6, 'Pares', 12974, 3, 'Taller'],
+    ['Gafas', 1, 'Unidades', 2250, 1, 'Taller'],
+    ['Shampoo', 10000, 'ml', 64000, 3000, 'Lavadero'],
+    ['Caucho', 13700, 'ml', 278494, 3000, 'Lavadero'],
+    ['Desengrasante', 30000, 'ml', 435600, 3000, 'Lavadero'],
+    ['Rejilla microfibra', 0, 'Unidades', 0, 1, 'Lavadero'],
+    ['Rejilla 2 hilos', 1, 'Unidades', 8200, 1, 'Lavadero'],
+    ['Esponja', 0, 'Unidades', 0, 1, 'Lavadero'],
+    ['Cepillo Cercrin', 0, 'Unidades', 0, 1, 'Lavadero'],
+    ['Atomizador', 0, 'Unidades', 0, 1, 'Lavadero']
+  ];
+
+  var existentes = hojaInsumos.getDataRange().getValues();
+  var porNombre = {};
+  for (var i = 1; i < existentes.length; i++) {
+    porNombre[String(existentes[i][2]).trim().toLowerCase() + '_jujuy'] = String(existentes[i][0]).trim();
+  }
+
+  var ingresosExistentes = hojaIngresos.getDataRange().getValues();
+  var cargasIniciales = {};
+  for (var e = 1; e < ingresosExistentes.length; e++) {
+    if (String(ingresosExistentes[e][10]).trim() === 'CARGA-INICIAL-AUTOSOL') {
+      cargasIniciales[String(ingresosExistentes[e][3]).trim()] = true;
+    }
+  }
+
+  for (var c = 0; c < catalogo.length; c++) {
+    var item = catalogo[c];
+    var clave = item[0].toLowerCase() + '_jujuy';
+    var idInsumo = porNombre[clave];
+    if (!idInsumo) {
+      idInsumo = generarIdInsumo(hojaInsumos);
+      hojaInsumos.appendRow([
+        idInsumo, item[5], item[0], item[2], 'Jujuy', item[4],
+        Math.max(item[4] * 2, item[4] + 1), 'Sí'
+      ]);
+      porNombre[clave] = idInsumo;
+    }
+
+    if (item[1] > 0 && !cargasIniciales[idInsumo]) {
+      var precioUnitario = Math.round((item[3] / item[1]) * 10000) / 10000;
+      hojaIngresos.appendRow([
+        generarIdUnico('ING', hojaIngresos), getFechaHoraActual(), 'Jujuy', idInsumo,
+        item[0], item[1], precioUnitario, item[3], 'Stock existente', 'Stock inicial',
+        'CARGA-INICIAL-AUTOSOL', 'Carga inicial', ''
+      ]);
+      cargasIniciales[idInsumo] = true;
+    }
+  }
+
+  var colaboradores = [
+    ['Alanoca', 'Taller', 'Jujuy', 'Sí'], ['Poclava', 'Taller', 'Jujuy', 'Sí'],
+    ['Fernández', 'Taller', 'Jujuy', 'Sí'], ['García', 'Taller', 'Jujuy', 'Sí'],
+    ['Araya', 'Taller', 'Jujuy', 'Sí'], ['Cruz', 'Taller', 'Jujuy', 'Sí'],
+    ['Ramos', 'Taller', 'Jujuy', 'Sí'], ['Silva', 'Taller', 'Jujuy', 'Sí'],
+    ['Mamani', 'Taller', 'Jujuy', 'Sí'], ['Pereyra', 'Taller', 'Jujuy', 'Sí']
+  ];
+  var colabData = hojaColaboradores.getDataRange().getValues();
+  var colabSet = {};
+  for (var d = 1; d < colabData.length; d++) {
+    colabSet[String(colabData[d][0]).trim().toLowerCase() + '_' + String(colabData[d][2]).trim().toLowerCase()] = true;
+  }
+  for (var p = 0; p < colaboradores.length; p++) {
+    var claveColab = colaboradores[p][0].toLowerCase() + '_jujuy';
+    if (!colabSet[claveColab]) hojaColaboradores.appendRow(colaboradores[p]);
+  }
+
+  recalcularStockCompleto();
+  return 'Inventario y colaboradores de Autosol cargados correctamente.';
+}
+
 // ============================================================================
 // Auth.gs
 // ============================================================================
