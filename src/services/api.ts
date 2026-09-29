@@ -997,6 +997,41 @@ class ApiService {
     };
   }
 
+  public async limpiarMovimientosDePrueba(): Promise<ApiResponse<{ message: string }>> {
+    // Si está conectado a Apps Script, ejecutar la limpieza remota en la planilla Google Sheets
+    if (this.isLiveConnected()) {
+      return await this.callAppsScript<{ message: string }>('limpiarMovimientosDePrueba');
+    }
+
+    // Limpieza local
+    const idsPruebaIngresos = [
+      'ING-20260920-00001',
+      'ING-20260921-00002',
+      'ING-20260922-00003',
+      'ING-20260925-00004',
+    ];
+    const compsPrueba = [
+      'FAC-A-0001-00084321',
+      'FAC-B-0003-00012903',
+      'FAC-A-0002-00045129',
+      'FAC-A-0001-00084550',
+    ];
+    const idsPruebaSalidas = ['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260929-00002'];
+
+    const ingresos = this.getStoredIngresos().filter(
+      (i) => !idsPruebaIngresos.includes(i.idMovimiento) && !compsPrueba.includes(i.comprobante)
+    );
+    this.setStoredIngresos(ingresos);
+
+    const salidas = this.getStoredSalidas().filter((s) => !idsPruebaSalidas.includes(s.idSolicitud));
+    this.setStoredSalidas(salidas);
+
+    return {
+      ok: true,
+      message: 'Movimientos de prueba eliminados exitosamente.',
+    };
+  }
+
   public resetDemoData(): void {
     localStorage.removeItem(STORAGE_KEY_INSUMOS);
     localStorage.removeItem(STORAGE_KEY_INGRESOS);

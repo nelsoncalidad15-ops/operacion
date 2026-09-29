@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   DollarSign,
   ArrowUpRight,
+  Sparkles,
 } from 'lucide-react';
 import { StockItem, Ingreso, Salida } from '../types';
 import { PROVINCIAS } from '../data/config';
@@ -20,6 +21,7 @@ export const Dashboard: React.FC = () => {
   const [ingresos, setIngresos] = useState<Ingreso[]>([]);
   const [salidas, setSalidas] = useState<Salida[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
 
@@ -36,16 +38,47 @@ export const Dashboard: React.FC = () => {
       const storedIngresos: Ingreso[] = JSON.parse(localStorage.getItem('ci_ingresos_v1') || '[]');
       const storedSalidas: Salida[] = JSON.parse(localStorage.getItem('ci_salidas_v1') || '[]');
 
+      // Filtrar movimientos de prueba que venían en la maqueta inicial
+      const idsPruebaIngresos = [
+        'ING-20260920-00001',
+        'ING-20260921-00002',
+        'ING-20260922-00003',
+        'ING-20260925-00004',
+      ];
+      const compsPrueba = [
+        'FAC-A-0001-00084321',
+        'FAC-B-0003-00012903',
+        'FAC-A-0002-00045129',
+        'FAC-A-0001-00084550',
+      ];
+      const idsPruebaSalidas = ['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260929-00002'];
+
+      const ingresosReales = storedIngresos.filter(
+        (i) => !idsPruebaIngresos.includes(i.idMovimiento) && !compsPrueba.includes(i.comprobante)
+      );
+
+      const salidasReales = storedSalidas.filter(
+        (s) => !idsPruebaSalidas.includes(s.idSolicitud)
+      );
+
+      // Si localStorage aún tenía guardados los viejos de prueba, limpiarlos también del almacenamiento
+      if (ingresosReales.length !== storedIngresos.length) {
+        localStorage.setItem('ci_ingresos_v1', JSON.stringify(ingresosReales));
+      }
+      if (salidasReales.length !== storedSalidas.length) {
+        localStorage.setItem('ci_salidas_v1', JSON.stringify(salidasReales));
+      }
+
       setIngresos(
         provinciaFiltro
-          ? storedIngresos.filter((i) => i.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : storedIngresos
+          ? ingresosReales.filter((i) => i.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
+          : ingresosReales
       );
 
       setSalidas(
         provinciaFiltro
-          ? storedSalidas.filter((s) => s.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : storedSalidas
+          ? salidasReales.filter((s) => s.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
+          : salidasReales
       );
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
@@ -57,6 +90,21 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [provinciaFiltro]);
+
+  const handleLimpiarPrueba = async () => {
+    if (!window.confirm('¿Deseas purgar las compras y salidas de prueba ficticias para arrancar desde cero con las operaciones reales? (No borra el inventario de Autosol)')) {
+      return;
+    }
+    setIsCleaning(true);
+    try {
+      await api.limpiarMovimientosDePrueba();
+      await loadData();
+    } catch (e) {
+      console.error('Error limpiando datos de prueba:', e);
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   const metrics = useMemo(() => {
     const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.total || 0), 0);
@@ -207,6 +255,16 @@ export const Dashboard: React.FC = () => {
             title="Actualizar datos"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={handleLimpiarPrueba}
+            disabled={isCleaning}
+            className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 bg-white text-xs font-medium flex items-center gap-1 transition-colors shadow-xs"
+            title="Limpiar compras y retiros de prueba para arrancar en cero"
+          >
+            <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${isCleaning ? 'animate-spin' : ''}`} />
+            <span className="hidden md:inline">Iniciar Operación Limpia</span>
           </button>
         </div>
       </div>

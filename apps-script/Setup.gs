@@ -55,68 +55,7 @@ function setupSistemaInsumos() {
         'Responsable',
         'Observaciones'
       ],
-      ejemplos: [
-        [
-          'ING-20260920-00001',
-          '2026-09-20 08:30:00',
-          'Jujuy',
-          'INS-001',
-          'Shampoo vehículos',
-          20,
-          8500,
-          170000,
-          'Química del Norte S.R.L.',
-          'Compra',
-          'FAC-A-0001-00084321',
-          'Marcelo Pereyra',
-          'Lote inicial de lavado'
-        ],
-        [
-          'ING-20260921-00002',
-          '2026-09-21 10:15:00',
-          'Jujuy',
-          'INS-002',
-          'Resma A4',
-          15,
-          5200,
-          78000,
-          'Papelera San Salvador',
-          'Compra',
-          'FAC-B-0003-00012903',
-          'Nelson Albarracín',
-          'Para administración y calidad'
-        ],
-        [
-          'ING-20260922-00003',
-          '2026-09-22 14:00:00',
-          'Jujuy',
-          'INS-003',
-          'Guantes nitrilo (Caja x100)',
-          20,
-          12500,
-          250000,
-          'Protección Industrial NOA',
-          'Compra',
-          'FAC-A-0002-00045129',
-          'Marcelo Pereyra',
-          'Reposición mensual de EPP'
-        ],
-        [
-          'ING-20260925-00004',
-          '2026-09-25 09:20:00',
-          'Salta',
-          'INS-007',
-          'Shampoo vehículos',
-          25,
-          8600,
-          215000,
-          'Química del Norte S.R.L.',
-          'Compra',
-          'FAC-A-0001-00084550',
-          'Pablo Guantay',
-          'Stock para sucursal Salta'
-        ]
-      ]
+      ejemplos: []
     },
     SALIDAS: {
       nombre: CONFIG.HOJAS.SALIDAS,
@@ -138,26 +77,7 @@ function setupSistemaInsumos() {
         'Observaciones',
         'Motivo Rechazo'
       ],
-      ejemplos: [
-        [
-          'SAL-20260927-00001',
-          '2026-09-27 09:10:00',
-          'Jujuy',
-          'Lavadero',
-          'INS-001',
-          'Shampoo vehículos',
-          'Esteban Martínez',
-          2,
-          2,
-          'Marcelo Pereyra',
-          '2026-09-27 09:30:00',
-          8500,
-          17000,
-          'AUTORIZADO',
-          'Lavado flota liviana',
-          ''
-        ]
-      ]
+      ejemplos: []
     },
     STOCK: {
       nombre: CONFIG.HOJAS.STOCK,

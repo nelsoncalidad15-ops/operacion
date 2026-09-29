@@ -221,68 +221,7 @@ function setupSistemaInsumos() {
         'Responsable',
         'Observaciones'
       ],
-      ejemplos: [
-        [
-          'ING-20260920-00001',
-          '2026-09-20 08:30:00',
-          'Jujuy',
-          'INS-001',
-          'Shampoo vehículos',
-          20,
-          8500,
-          170000,
-          'Química del Norte S.R.L.',
-          'Compra',
-          'FAC-A-0001-00084321',
-          'Marcelo Pereyra',
-          'Lote inicial de lavado'
-        ],
-        [
-          'ING-20260921-00002',
-          '2026-09-21 10:15:00',
-          'Jujuy',
-          'INS-002',
-          'Resma A4',
-          15,
-          5200,
-          78000,
-          'Papelera San Salvador',
-          'Compra',
-          'FAC-B-0003-00012903',
-          'Nelson Albarracín',
-          'Para administración y calidad'
-        ],
-        [
-          'ING-20260922-00003',
-          '2026-09-22 14:00:00',
-          'Jujuy',
-          'INS-003',
-          'Guantes nitrilo (Caja x100)',
-          20,
-          12500,
-          250000,
-          'Protección Industrial NOA',
-          'Compra',
-          'FAC-A-0002-00045129',
-          'Marcelo Pereyra',
-          'Reposición mensual de EPP'
-        ],
-        [
-          'ING-20260925-00004',
-          '2026-09-25 09:20:00',
-          'Salta',
-          'INS-007',
-          'Shampoo vehículos',
-          25,
-          8600,
-          215000,
-          'Química del Norte S.R.L.',
-          'Compra',
-          'FAC-A-0001-00084550',
-          'Pablo Guantay',
-          'Stock para sucursal Salta'
-        ]
-      ]
+      ejemplos: []
     },
     SALIDAS: {
       nombre: CONFIG.HOJAS.SALIDAS,
@@ -304,26 +243,7 @@ function setupSistemaInsumos() {
         'Observaciones',
         'Motivo Rechazo'
       ],
-      ejemplos: [
-        [
-          'SAL-20260927-00001',
-          '2026-09-27 09:10:00',
-          'Jujuy',
-          'Lavadero',
-          'INS-001',
-          'Shampoo vehículos',
-          'Esteban Martínez',
-          2,
-          2,
-          'Marcelo Pereyra',
-          '2026-09-27 09:30:00',
-          8500,
-          17000,
-          'AUTORIZADO',
-          'Lavado flota liviana',
-          ''
-        ]
-      ]
+      ejemplos: []
     },
     STOCK: {
       nombre: CONFIG.HOJAS.STOCK,
@@ -564,6 +484,52 @@ function repararStockInicialAutosol() {
   var resultado = cargarDatosInicialesAutosol();
   recalcularStockCompleto();
   return resultado + ' Vínculos de stock reparados.';
+}
+
+/**
+ * Elimina únicamente los movimientos ficticios de prueba de las hojas INGRESOS y SALIDAS
+ * (comprobantes FAC-A-0001-00084321, FAC-B-0003-00012903, FAC-A-0002-00045129, FAC-A-0001-00084550 y SAL-20260927-00001)
+ * respetando el stock inicial de Autosol (CARGA-INICIAL-AUTOSOL) y cualquier movimiento real registrado.
+ */
+function limpiarMovimientosDePrueba() {
+  var ss = getSpreadsheet();
+  var hojaIngresos = ss.getSheetByName(CONFIG.HOJAS.INGRESOS);
+  var hojaSalidas = ss.getSheetByName(CONFIG.HOJAS.SALIDAS);
+  var borradosIngresos = 0;
+  var borradosSalidas = 0;
+
+  var idsPruebaIngresos = [
+    'ING-20260920-00001',
+    'ING-20260921-00002',
+    'ING-20260922-00003',
+    'ING-20260925-00004'
+  ];
+
+  if (hojaIngresos && hojaIngresos.getLastRow() > 1) {
+    var ingData = hojaIngresos.getDataRange().getValues();
+    for (var r = ingData.length - 1; r >= 1; r--) {
+      var idMov = String(ingData[r][0]).trim();
+      var comp = String(ingData[r][10]).trim();
+      if (idsPruebaIngresos.indexOf(idMov) !== -1 || comp === 'FAC-A-0001-00084321' || comp === 'FAC-B-0003-00012903' || comp === 'FAC-A-0002-00045129' || comp === 'FAC-A-0001-00084550') {
+        hojaIngresos.deleteRow(r + 1);
+        borradosIngresos++;
+      }
+    }
+  }
+
+  if (hojaSalidas && hojaSalidas.getLastRow() > 1) {
+    var salData = hojaSalidas.getDataRange().getValues();
+    for (var s = salData.length - 1; s >= 1; s--) {
+      var idSal = String(salData[s][0]).trim();
+      if (idSal === 'SAL-20260927-00001' || idSal === 'SAL-20260929-00001' || idSal === 'SAL-20260929-00002') {
+        hojaSalidas.deleteRow(s + 1);
+        borradosSalidas++;
+      }
+    }
+  }
+
+  recalcularStockCompleto();
+  return 'Se eliminaron ' + borradosIngresos + ' ingresos y ' + borradosSalidas + ' salidas de prueba. Stock recalculado.';
 }
 
 // ============================================================================
@@ -1558,6 +1524,11 @@ function handleRequest(e) {
 
       case 'getUltimosMovimientos':
         result = obtenerHistorialMovimientos(payload.limit || 20);
+        break;
+
+      case 'limpiarMovimientosDePrueba':
+        var cleanMsg = limpiarMovimientosDePrueba();
+        result = crearRespuesta(true, { message: cleanMsg }, cleanMsg);
         break;
 
       default:
