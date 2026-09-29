@@ -3,7 +3,7 @@
 // ============================================================================
 
 /**
- * Control de Insumos - ConfiguraciÃ³n General
+ * Control de Insumos - Configuración General
  * Apps Script Backend
  */
 
@@ -27,34 +27,34 @@ var CONFIG = {
     'Taller',
     'Lavadero',
     'Repuestos',
-    'AdministraciÃ³n',
+    'Administración',
     'Ventas',
     'Calidad',
-    'LogÃ­stica',
+    'Logística',
     'Mantenimiento'
   ],
 
   // Lista base de Colaboradores
   COLABORADORES: [
-    { nombre: 'Mauro GutiÃ©rrez', sector: 'Taller', provincia: 'Jujuy' },
+    { nombre: 'Mauro Gutiérrez', sector: 'Taller', provincia: 'Jujuy' },
     { nombre: 'Carlos Quispe', sector: 'Taller', provincia: 'Jujuy' },
-    { nombre: 'Esteban MartÃ­nez', sector: 'Lavadero', provincia: 'Jujuy' },
-    { nombre: 'Franco AlarcÃ³n', sector: 'Lavadero', provincia: 'Jujuy' },
-    { nombre: 'MarÃ­a Elena Morales', sector: 'Repuestos', provincia: 'Jujuy' },
-    { nombre: 'Luciana FarfÃ¡n', sector: 'AdministraciÃ³n', provincia: 'Jujuy' },
+    { nombre: 'Esteban Martínez', sector: 'Lavadero', provincia: 'Jujuy' },
+    { nombre: 'Franco Alarcón', sector: 'Lavadero', provincia: 'Jujuy' },
+    { nombre: 'María Elena Morales', sector: 'Repuestos', provincia: 'Jujuy' },
+    { nombre: 'Luciana Farfán', sector: 'Administración', provincia: 'Jujuy' },
     { nombre: 'Gonzalo Burgos', sector: 'Ventas', provincia: 'Jujuy' },
-    { nombre: 'Nelson AlbarracÃ­n', sector: 'Calidad', provincia: 'Jujuy' },
+    { nombre: 'Nelson Albarracín', sector: 'Calidad', provincia: 'Jujuy' },
     { nombre: 'Jorge Mamani', sector: 'Mantenimiento', provincia: 'Jujuy' },
-    { nombre: 'NicolÃ¡s Cruz', sector: 'LogÃ­stica', provincia: 'Jujuy' },
-    { nombre: 'Gustavo BenÃ­tez', sector: 'Taller', provincia: 'Salta' },
-    { nombre: 'MatÃ­as Villalba', sector: 'Lavadero', provincia: 'Salta' },
+    { nombre: 'Nicolás Cruz', sector: 'Logística', provincia: 'Jujuy' },
+    { nombre: 'Gustavo Benítez', sector: 'Taller', provincia: 'Salta' },
+    { nombre: 'Matías Villalba', sector: 'Lavadero', provincia: 'Salta' },
     { nombre: 'Ramiro Figueroa', sector: 'Repuestos', provincia: 'Salta' },
-    { nombre: 'Carla Vaca', sector: 'AdministraciÃ³n', provincia: 'Salta' },
+    { nombre: 'Carla Vaca', sector: 'Administración', provincia: 'Salta' },
     { nombre: 'Pablo Guantay', sector: 'Calidad', provincia: 'Salta' },
     { nombre: 'Diego Saravia', sector: 'Mantenimiento', provincia: 'Salta' }
   ],
 
-  // DuraciÃ³n de la sesiÃ³n de responsable (en segundos) para CacheService
+  // Duración de la sesión de responsable (en segundos) para CacheService
   DURACION_SESION_SEG: 1800, // 30 minutos
 
   // PINs por defecto (se recomienda configurar en Script Properties)
@@ -62,12 +62,12 @@ var CONFIG = {
   PINS_POR_DEFECTO: {
     '1423': 'Marcelo Pereyra',
     '7852': 'Pablo Guantay',
-    '9021': 'Nelson AlbarracÃ­n'
+    '9021': 'Nelson Albarracín'
   }
 };
 
 /**
- * Obtiene la hoja de cÃ¡lculo activa o la vinculada por ID en Script Properties
+ * Obtiene la hoja de cálculo activa o la vinculada por ID en Script Properties
  */
 function getSpreadsheet() {
   var prop = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
@@ -109,16 +109,16 @@ function getFechaHoraActual() {
 }
 
 /**
- * Obtiene la fecha en formato YYYYMMDD para generaciÃ³n de IDs
+ * Obtiene la fecha en formato YYYYMMDD para generación de IDs
  */
 function getFechaCompacta() {
   return Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'yyyyMMdd');
 }
 
 /**
- * Genera un ID Ãºnico para un movimiento o solicitud
+ * Genera un ID único para un movimiento o solicitud
  * @param {string} prefijo - 'ING' o 'SAL' o 'INS'
- * @param {Sheet} hoja - La hoja donde se buscarÃ¡ el consecutivo
+ * @param {Sheet} hoja - La hoja donde se buscará el consecutivo
  */
 function generarIdUnico(prefijo, hoja) {
   var fecha = getFechaCompacta();
@@ -157,7 +157,7 @@ function generarIdInsumo(hojaInsumos) {
 }
 
 /**
- * Sanitiza y convierte a nÃºmero de forma segura
+ * Sanitiza y convierte a número de forma segura
  */
 function parseNumeroSeguro(val) {
   if (val === null || val === undefined || val === '') return 0;
@@ -166,13 +166,13 @@ function parseNumeroSeguro(val) {
 }
 
 /**
- * Crea una respuesta estÃ¡ndar JSON para la Web App
+ * Crea una respuesta estándar JSON para la Web App
  */
 function crearRespuesta(ok, data, message, code, details) {
   return {
     ok: ok,
     data: data || null,
-    message: message || (ok ? 'OperaciÃ³n exitosa' : 'Error en la operaciÃ³n'),
+    message: message || (ok ? 'Operación exitosa' : 'Error en la operación'),
     code: code || (ok ? 'SUCCESS' : 'ERROR'),
     details: details || null
   };
@@ -183,36 +183,36 @@ function crearRespuesta(ok, data, message, code, details) {
 // ============================================================================
 
 /**
- * Control de Insumos - InstalaciÃ³n Inicial y Estructura de Hojas
- * FunciÃ³n setupSistemaInsumos()
+ * Control de Insumos - Instalación Inicial y Estructura de Hojas
+ * Función setupSistemaInsumos()
  */
 
 function setupSistemaInsumos() {
   var ss = getSpreadsheet();
 
-  // DefiniciÃ³n exacta de las columnas requeridas
+  // Definición exacta de las columnas requeridas
   var estructuras = {
     INSUMOS: {
       nombre: CONFIG.HOJAS.INSUMOS,
       columnas: [
         'ID',
-        'CategorÃ­a',
+        'Categoría',
         'Insumo',
         'Unidad',
         'Provincia',
-        'Stock mÃ­nimo',
+        'Stock mínimo',
         'Stock objetivo',
         'Activo'
       ],
       ejemplos: [
-        ['INS-001', 'Limpieza', 'Shampoo vehÃ­culos', 'Litros', 'Jujuy', 10, 30, 'SÃ­'],
-        ['INS-002', 'LibrerÃ­a', 'Resma A4', 'Unidad', 'Jujuy', 5, 15, 'SÃ­'],
-        ['INS-003', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Jujuy', 8, 25, 'SÃ­'],
-        ['INS-004', 'MecÃ¡nica', 'Grasa para chasis (Balde 18kg)', 'Balde', 'Jujuy', 3, 8, 'SÃ­'],
-        ['INS-005', 'Limpieza', 'Desengrasante motor', 'Litros', 'Jujuy', 15, 40, 'SÃ­'],
-        ['INS-006', 'MecÃ¡nica', 'LÃ­quido de frenos DOT 4 (500ml)', 'Unidad', 'Jujuy', 12, 30, 'SÃ­'],
-        ['INS-007', 'Limpieza', 'Shampoo vehÃ­culos', 'Litros', 'Salta', 8, 25, 'SÃ­'],
-        ['INS-008', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Salta', 6, 20, 'SÃ­']
+        ['INS-001', 'Limpieza', 'Shampoo vehículos', 'Litros', 'Jujuy', 10, 30, 'Sí'],
+        ['INS-002', 'Librería', 'Resma A4', 'Unidad', 'Jujuy', 5, 15, 'Sí'],
+        ['INS-003', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Jujuy', 8, 25, 'Sí'],
+        ['INS-004', 'Mecánica', 'Grasa para chasis (Balde 18kg)', 'Balde', 'Jujuy', 3, 8, 'Sí'],
+        ['INS-005', 'Limpieza', 'Desengrasante motor', 'Litros', 'Jujuy', 15, 40, 'Sí'],
+        ['INS-006', 'Mecánica', 'Líquido de frenos DOT 4 (500ml)', 'Unidad', 'Jujuy', 12, 30, 'Sí'],
+        ['INS-007', 'Limpieza', 'Shampoo vehículos', 'Litros', 'Salta', 8, 25, 'Sí'],
+        ['INS-008', 'Seguridad', 'Guantes nitrilo (Caja x100)', 'Caja', 'Salta', 6, 20, 'Sí']
       ]
     },
     INGRESOS: {
@@ -238,11 +238,11 @@ function setupSistemaInsumos() {
           '2026-09-20 08:30:00',
           'Jujuy',
           'INS-001',
-          'Shampoo vehÃ­culos',
+          'Shampoo vehículos',
           20,
           8500,
           170000,
-          'QuÃ­mica del Norte S.R.L.',
+          'Química del Norte S.R.L.',
           'Compra',
           'FAC-A-0001-00084321',
           'Marcelo Pereyra',
@@ -260,8 +260,8 @@ function setupSistemaInsumos() {
           'Papelera San Salvador',
           'Compra',
           'FAC-B-0003-00012903',
-          'Nelson AlbarracÃ­n',
-          'Para administraciÃ³n y calidad'
+          'Nelson Albarracín',
+          'Para administración y calidad'
         ],
         [
           'ING-20260922-00003',
@@ -272,22 +272,22 @@ function setupSistemaInsumos() {
           20,
           12500,
           250000,
-          'ProtecciÃ³n Industrial NOA',
+          'Protección Industrial NOA',
           'Compra',
           'FAC-A-0002-00045129',
           'Marcelo Pereyra',
-          'ReposiciÃ³n mensual de EPP'
+          'Reposición mensual de EPP'
         ],
         [
           'ING-20260925-00004',
           '2026-09-25 09:20:00',
           'Salta',
           'INS-007',
-          'Shampoo vehÃ­culos',
+          'Shampoo vehículos',
           25,
           8600,
           215000,
-          'QuÃ­mica del Norte S.R.L.',
+          'Química del Norte S.R.L.',
           'Compra',
           'FAC-A-0001-00084550',
           'Pablo Guantay',
@@ -308,7 +308,7 @@ function setupSistemaInsumos() {
         'Cantidad Solicitada',
         'Cantidad Autorizada',
         'Autorizado Por',
-        'Fecha/Hora AutorizaciÃ³n',
+        'Fecha/Hora Autorización',
         'Costo Unitario',
         'Valor Salida',
         'Estado',
@@ -322,8 +322,8 @@ function setupSistemaInsumos() {
           'Jujuy',
           'Lavadero',
           'INS-001',
-          'Shampoo vehÃ­culos',
-          'Esteban MartÃ­nez',
+          'Shampoo vehículos',
+          'Esteban Martínez',
           2,
           2,
           'Marcelo Pereyra',
@@ -341,7 +341,7 @@ function setupSistemaInsumos() {
       columnas: [
         'ID Insumo',
         'Provincia',
-        'CategorÃ­a',
+        'Categoría',
         'Insumo',
         'Unidad',
         'Total Ingresado',
@@ -349,7 +349,7 @@ function setupSistemaInsumos() {
         'Stock Actual',
         'Costo Promedio',
         'Valor Stock',
-        'Stock MÃ­nimo',
+        'Stock Mínimo',
         'Stock Objetivo',
         'Cantidad a Reponer',
         'Estado'
@@ -371,7 +371,7 @@ function setupSistemaInsumos() {
     var lastCol = hoja.getLastColumn();
 
     if (lastRow === 0 || lastCol === 0) {
-      // Hoja vacÃ­a: insertar encabezados
+      // Hoja vacía: insertar encabezados
       hoja.getRange(1, 1, 1, def.columnas.length).setValues([def.columnas]);
       if (def.ejemplos.length > 0) {
         hoja.getRange(2, 1, def.ejemplos.length, def.columnas.length).setValues(def.ejemplos);
@@ -404,11 +404,51 @@ function setupSistemaInsumos() {
     }
   }
 
-  // Recalcular la hoja de Stock automÃ¡ticamente
+  // Recalcular la hoja de Stock automáticamente
   recalcularStockCompleto();
 
+  // Corrige textos creados por versiones anteriores con codificación incorrecta.
+  repararCodificacion();
+
   Logger.log('Sistema de Control de Insumos inicializado correctamente.');
-  return 'ConfiguraciÃ³n inicial completada con Ã©xito. Las 4 hojas estÃ¡n operativas.';
+  return 'Configuración inicial completada con éxito. Las 4 hojas están operativas.';
+}
+
+/**
+ * Repara textos como "SÃ­" o "CategorÃ­a" que hayan quedado guardados
+ * por una versión anterior del instalador.
+ */
+function repararCodificacion() {
+  var ss = getSpreadsheet();
+  var reemplazos = {
+    'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú', 'Ã±': 'ñ',
+    'Ã': 'Á', 'Ã‰': 'É', 'Ã': 'Í', 'Ã“': 'Ó', 'Ãš': 'Ú', 'Ã‘': 'Ñ',
+    'Â¿': '¿', 'Â¡': '¡', 'Â·': '·', 'â†’': '→', 'â€¢': '•'
+  };
+
+  ss.getSheets().forEach(function(hoja) {
+    var rango = hoja.getDataRange();
+    var valores = rango.getValues();
+    var cambio = false;
+
+    for (var fila = 0; fila < valores.length; fila++) {
+      for (var columna = 0; columna < valores[fila].length; columna++) {
+        if (typeof valores[fila][columna] !== 'string') continue;
+        var texto = valores[fila][columna];
+        Object.keys(reemplazos).forEach(function(mal) {
+          texto = texto.split(mal).join(reemplazos[mal]);
+        });
+        if (texto !== valores[fila][columna]) {
+          valores[fila][columna] = texto;
+          cambio = true;
+        }
+      }
+    }
+
+    if (cambio) rango.setValues(valores);
+  });
+
+  return 'Textos corregidos correctamente.';
 }
 
 // ============================================================================
@@ -416,17 +456,17 @@ function setupSistemaInsumos() {
 // ============================================================================
 
 /**
- * Control de Insumos - AutenticaciÃ³n con PIN y GestiÃ³n de Sesiones
+ * Control de Insumos - Autenticación con PIN y Gestión de Sesiones
  */
 
 /**
  * Valida el PIN ingresado por el responsable
  * @param {string} pin
- * @returns {Object} Respuesta con token de sesiÃ³n y nombre del responsable
+ * @returns {Object} Respuesta con token de sesión y nombre del responsable
  */
 function validarPinResponsable(pin) {
   if (!pin || String(pin).trim() === '') {
-    return crearRespuesta(false, null, 'El PIN no puede estar vacÃ­o.', 'PIN_VACIO');
+    return crearRespuesta(false, null, 'El PIN no puede estar vacío.', 'PIN_VACIO');
   }
 
   var cleanPin = String(pin).trim();
@@ -437,7 +477,7 @@ function validarPinResponsable(pin) {
     return crearRespuesta(false, null, 'PIN incorrecto. Acceso denegado.', 'PIN_INVALIDO');
   }
 
-  // Generar token de sesiÃ³n Ãºnico y efÃ­mero
+  // Generar token de sesión único y efímero
   var token = 'tok_' + Utilities.getUuid().replace(/-/g, '') + '_' + Date.now();
   var duracionSeg = CONFIG.DURACION_SESION_SEG || 1800; // 30 minutos
 
@@ -459,9 +499,9 @@ function validarPinResponsable(pin) {
 }
 
 /**
- * Verifica si un token de sesiÃ³n es vÃ¡lido
+ * Verifica si un token de sesión es válido
  * @param {string} token
- * @returns {Object|null} Datos de la sesiÃ³n o null si es invÃ¡lido
+ * @returns {Object|null} Datos de la sesión o null si es inválido
  */
 function verificarSesion(token) {
   if (!token) return null;
@@ -486,11 +526,11 @@ function verificarSesion(token) {
 // ============================================================================
 
 /**
- * Control de Insumos - CÃ¡lculo de Stock y Costo Promedio Ponderado
+ * Control de Insumos - Cálculo de Stock y Costo Promedio Ponderado
  */
 
 /**
- * Obtiene el inventario actual y cÃ¡lculos de stock
+ * Obtiene el inventario actual y cálculos de stock
  * @param {string} [provinciaFiltro]
  * @returns {Array<Object>}
  */
@@ -505,7 +545,7 @@ function obtenerStock(provinciaFiltro) {
   var insumosData = hojaInsumos.getDataRange().getValues();
   if (insumosData.length <= 1) return [];
 
-  // Mapear ingresos en memoria (eficiencia sin mÃºltiples getRange)
+  // Mapear ingresos en memoria (eficiencia sin múltiples getRange)
   var ingresosData = hojaIngresos ? hojaIngresos.getDataRange().getValues() : [];
   var salidasData = hojaSalidas ? hojaSalidas.getDataRange().getValues() : [];
 
@@ -528,7 +568,7 @@ function obtenerStock(provinciaFiltro) {
     ingresosMap[key].totalValor += totIng;
   }
 
-  // Diccionario de salidas vÃ¡lidas por clave: ID_PROVINCIA
+  // Diccionario de salidas válidas por clave: ID_PROVINCIA
   // Regla estricta: Solo AUTORIZADO y AUTORIZADO PARCIAL descuentan stock.
   var salidasMap = {};
   for (var s = 1; s < salidasData.length; s++) {
@@ -547,7 +587,7 @@ function obtenerStock(provinciaFiltro) {
     }
   }
 
-  // Iterar sobre catÃ¡logo de insumos
+  // Iterar sobre catálogo de insumos
   for (var k = 1; k < insumosData.length; k++) {
     var rowIns = insumosData[k];
     var id = String(rowIns[0]).trim();
@@ -574,7 +614,7 @@ function obtenerStock(provinciaFiltro) {
     var costoPromedio = totalIngresado > 0 ? (totalValorIngresado / totalIngresado) : 0;
     costoPromedio = Math.round(costoPromedio * 100) / 100;
 
-    // Stock actual (mÃ­nimo 0 para evitar negativos anÃ³malos)
+    // Stock actual (mínimo 0 para evitar negativos anómalos)
     var stockActual = Math.max(0, totalIngresado - totalSalido);
     var valorStock = Math.round(stockActual * costoPromedio * 100) / 100;
 
@@ -615,7 +655,7 @@ function obtenerStock(provinciaFiltro) {
 }
 
 /**
- * Recalcula toda la hoja STOCK en un Ãºnico lote eficiente
+ * Recalcula toda la hoja STOCK en un único lote eficiente
  */
 function recalcularStockCompleto() {
   var ss = getSpreadsheet();
@@ -643,7 +683,7 @@ function recalcularStockCompleto() {
       it.stockMinimo,
       it.stockObjetivo,
       it.cantidadReponer,
-      it.estado === 'CRITICO' ? 'CRÃTICO / BAJO MÃNIMO' : (it.estado === 'CERCA_MINIMO' ? 'CERCA DEL MÃNIMO' : 'SUFICIENTE')
+      it.estado === 'CRITICO' ? 'CRÍTICO / BAJO MÍNIMO' : (it.estado === 'CERCA_MINIMO' ? 'CERCA DEL MÍNIMO' : 'SUFICIENTE')
     ]);
   }
 
@@ -657,10 +697,10 @@ function recalcularStockCompleto() {
     var range = hojaStock.getRange(2, 1, rows.length, rows[0].length);
     range.setValues(rows);
 
-    // Formatear monedas y nÃºmeros
+    // Formatear monedas y números
     hojaStock.getRange(2, 9, rows.length, 2).setNumberFormat('$#,##0.00'); // Costo Promedio y Valor Stock
     hojaStock.getRange(2, 6, rows.length, 3).setNumberFormat('#,##0.00'); // Totales y Stock Actual
-    hojaStock.getRange(2, 11, rows.length, 3).setNumberFormat('#,##0.00'); // MÃ­nimo, Objetivo, Reponer
+    hojaStock.getRange(2, 11, rows.length, 3).setNumberFormat('#,##0.00'); // Mínimo, Objetivo, Reponer
   }
 
   return crearRespuesta(true, { actualizados: rows.length }, 'Stock recalculado exitosamente.');
@@ -671,7 +711,7 @@ function recalcularStockCompleto() {
 // ============================================================================
 
 /**
- * Control de Insumos - GestiÃ³n de Solicitudes y Autorizaciones
+ * Control de Insumos - Gestión de Solicitudes y Autorizaciones
  */
 
 /**
@@ -704,10 +744,10 @@ function crearSolicitud(payload) {
   var hojaSalidas = ss.getSheetByName(CONFIG.HOJAS.SALIDAS);
 
   if (!hojaInsumos || !hojaSalidas) {
-    return crearRespuesta(false, null, 'Error en la configuraciÃ³n de hojas.', 'HOJAS_NO_ENCONTRADAS');
+    return crearRespuesta(false, null, 'Error en la configuración de hojas.', 'HOJAS_NO_ENCONTRADAS');
   }
 
-  // Verificar que el insumo exista y estÃ© activo
+  // Verificar que el insumo exista y esté activo
   var insumosData = hojaInsumos.getDataRange().getValues();
   var insumoNombre = '';
   var activo = 'No';
@@ -721,11 +761,11 @@ function crearSolicitud(payload) {
     }
   }
 
-  if (!insumoNombre || activo !== 'SÃ­') {
+  if (!insumoNombre || activo !== 'Sí') {
     return crearRespuesta(false, null, 'El insumo seleccionado no existe o no se encuentra activo.', 'INSUMO_INACTIVO');
   }
 
-  // Verificar stock fÃ­sicamente disponible
+  // Verificar stock físicamente disponible
   var stockList = obtenerStock(provincia);
   var stockItem = null;
   for (var s = 0; s < stockList.length; s++) {
@@ -744,7 +784,7 @@ function crearSolicitud(payload) {
     }, 'CANTIDAD NO DISPONIBLE. Solicitado: ' + cantidad + ' | Stock actual: ' + stockActual, 'STOCK_INSUFICIENTE');
   }
 
-  // Generar ID Ãºnico
+  // Generar ID único
   var idSolicitud = generarIdUnico('SAL', hojaSalidas);
   var fechaHora = getFechaHoraActual();
 
@@ -757,9 +797,9 @@ function crearSolicitud(payload) {
     insumoNombre,
     solicitante,
     cantidad,
-    0, // Cantidad autorizada (aÃºn pendiente)
+    0, // Cantidad autorizada (aún pendiente)
     '', // Autorizado por
-    '', // Fecha autorizaciÃ³n
+    '', // Fecha autorización
     0,  // Costo unitario
     0,  // Valor salida
     'PENDIENTE',
@@ -775,7 +815,7 @@ function crearSolicitud(payload) {
     insumo: insumoNombre,
     cantidad: cantidad,
     estado: 'PENDIENTE'
-  }, 'Solicitud registrada correctamente. Pendiente de autorizaciÃ³n.');
+  }, 'Solicitud registrada correctamente. Pendiente de autorización.');
 }
 
 /**
@@ -832,7 +872,7 @@ function obtenerSolicitudesPendientes(provinciaFiltro) {
     }
   }
 
-  // Ordenar: mÃ¡s antiguas primero
+  // Ordenar: más antiguas primero
   pendientes.sort(function(a, b) {
     return String(a.fechaHoraSolicitud).localeCompare(String(b.fechaHoraSolicitud));
   });
@@ -841,12 +881,12 @@ function obtenerSolicitudesPendientes(provinciaFiltro) {
 }
 
 /**
- * Autoriza una solicitud (Total o Parcial) con protecciÃ³n de concurrencia y LockService
+ * Autoriza una solicitud (Total o Parcial) con protección de concurrencia y LockService
  */
 function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
   var session = verificarSesion(token);
   if (!session) {
-    return crearRespuesta(false, null, 'SesiÃ³n expirada o invÃ¡lida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
+    return crearRespuesta(false, null, 'Sesión expirada o inválida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
   }
 
   var cantAuth = parseNumeroSeguro(cantidadAutorizada);
@@ -858,7 +898,7 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
   var lock = LockService.getScriptLock();
   var hasLock = lock.tryLock(10000); // Esperar hasta 10 segundos
   if (!hasLock) {
-    return crearRespuesta(false, null, 'El servidor estÃ¡ ocupado procesando otra autorizaciÃ³n. ReintentÃ¡ en un momento.', 'LOCK_TIMEOUT');
+    return crearRespuesta(false, null, 'El servidor está ocupado procesando otra autorización. Reintentá en un momento.', 'LOCK_TIMEOUT');
   }
 
   try {
@@ -891,13 +931,13 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
 
     var cantSolicitada = parseNumeroSeguro(solicitudData[7]);
     if (cantAuth > cantSolicitada) {
-      return crearRespuesta(false, null, 'No se puede autorizar mÃ¡s de la cantidad solicitada (' + cantSolicitada + ').', 'EXCEDE_SOLICITADO');
+      return crearRespuesta(false, null, 'No se puede autorizar más de la cantidad solicitada (' + cantSolicitada + ').', 'EXCEDE_SOLICITADO');
     }
 
     var idInsumo = String(solicitudData[4]).trim();
     var provincia = String(solicitudData[2]).trim();
 
-    // ComprobaciÃ³n de concurrencia: consultar stock REAL en este instante
+    // Comprobación de concurrencia: consultar stock REAL en este instante
     var stockList = obtenerStock(provincia);
     var stockItem = null;
     for (var k = 0; k < stockList.length; k++) {
@@ -924,7 +964,7 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
     // Actualizar columnas en la hoja SALIDAS:
     // I: Cantidad Autorizada (col 9)
     // J: Autorizado Por (col 10)
-    // K: Fecha/Hora AutorizaciÃ³n (col 11)
+    // K: Fecha/Hora Autorización (col 11)
     // L: Costo Unitario (col 12)
     // M: Valor Salida (col 13)
     // N: Estado (col 14)
@@ -963,13 +1003,13 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
 function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
   var session = verificarSesion(token);
   if (!session) {
-    return crearRespuesta(false, null, 'SesiÃ³n expirada o invÃ¡lida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
+    return crearRespuesta(false, null, 'Sesión expirada o inválida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
   }
 
   var lock = LockService.getScriptLock();
   var hasLock = lock.tryLock(10000);
   if (!hasLock) {
-    return crearRespuesta(false, null, 'El servidor estÃ¡ ocupado. ReintentÃ¡ en un momento.', 'LOCK_TIMEOUT');
+    return crearRespuesta(false, null, 'El servidor está ocupado. Reintentá en un momento.', 'LOCK_TIMEOUT');
   }
 
   try {
@@ -1014,7 +1054,7 @@ function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
 // ============================================================================
 
 /**
- * Control de Insumos - GestiÃ³n de Ingresos de MercaderÃ­a
+ * Control de Insumos - Gestión de Ingresos de Mercadería
  */
 
 /**
@@ -1023,7 +1063,7 @@ function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
 function registrarIngreso(payload, token) {
   var session = verificarSesion(token);
   if (!session) {
-    return crearRespuesta(false, null, 'SesiÃ³n expirada o invÃ¡lida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
+    return crearRespuesta(false, null, 'Sesión expirada o inválida. Ingrese el PIN de responsable nuevamente.', 'SESION_EXPIRADA');
   }
 
   if (!payload) {
@@ -1103,7 +1143,7 @@ function registrarIngreso(payload, token) {
 
     hojaIngresos.appendRow(fila);
 
-    // Formatear la fila reciÃ©n agregada
+    // Formatear la fila recién agregada
     var lastRow = hojaIngresos.getLastRow();
     hojaIngresos.getRange(lastRow, 6).setNumberFormat('#,##0.00'); // Cantidad
     hojaIngresos.getRange(lastRow, 7, 1, 2).setNumberFormat('$#,##0.00'); // Precio y Total
@@ -1118,7 +1158,7 @@ function registrarIngreso(payload, token) {
       cantidad: cantidad,
       total: total,
       responsable: session.responsableNombre
-    }, 'Ingreso registrado con Ã©xito. Total: $ ' + total);
+    }, 'Ingreso registrado con éxito. Total: $ ' + total);
 
   } finally {
     lock.releaseLock();
@@ -1126,7 +1166,7 @@ function registrarIngreso(payload, token) {
 }
 
 /**
- * Obtiene lista Ãºnica de proveedores para autocompletado
+ * Obtiene lista única de proveedores para autocompletado
  */
 function obtenerProveedoresSugeridos() {
   var ss = getSpreadsheet();
@@ -1190,7 +1230,7 @@ function handleRequest(e) {
           timestamp: getFechaHoraActual(),
           timezone: CONFIG.TIMEZONE,
           version: '1.0.0'
-        }, 'ConexiÃ³n exitosa con Google Apps Script y base de datos Google Sheets.');
+        }, 'Conexión exitosa con Google Apps Script y base de datos Google Sheets.');
         break;
 
       case 'setup':
@@ -1300,7 +1340,7 @@ function handleRequest(e) {
         break;
 
       default:
-        result = crearRespuesta(false, null, 'AcciÃ³n no reconocida: ' + action, 'ACCION_DESCONOCIDA');
+        result = crearRespuesta(false, null, 'Acción no reconocida: ' + action, 'ACCION_DESCONOCIDA');
         break;
     }
 
@@ -1313,7 +1353,7 @@ function handleRequest(e) {
     var errorResponse = crearRespuesta(
       false,
       null,
-      'OcurriÃ³ un error en el servidor. Por favor intente nuevamente.',
+      'Ocurrió un error en el servidor. Por favor intente nuevamente.',
       'SERVER_ERROR',
       err.message
     );
@@ -1324,7 +1364,7 @@ function handleRequest(e) {
 }
 
 /**
- * Obtiene los Ãºltimos movimientos combinados (Ingresos y Salidas)
+ * Obtiene los últimos movimientos combinados (Ingresos y Salidas)
  */
 function obtenerHistorialMovimientos(limit) {
   var ss = getSpreadsheet();

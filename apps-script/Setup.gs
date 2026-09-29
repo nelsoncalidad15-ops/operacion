@@ -223,6 +223,46 @@ function setupSistemaInsumos() {
   // Recalcular la hoja de Stock automáticamente
   recalcularStockCompleto();
 
+  // Corrige textos creados por versiones anteriores con codificación incorrecta.
+  repararCodificacion();
+
   Logger.log('Sistema de Control de Insumos inicializado correctamente.');
   return 'Configuración inicial completada con éxito. Las 4 hojas están operativas.';
+}
+
+/**
+ * Repara textos como "SÃ­" o "CategorÃ­a" que hayan quedado guardados
+ * por una versión anterior del instalador.
+ */
+function repararCodificacion() {
+  var ss = getSpreadsheet();
+  var reemplazos = {
+    'Ã¡': 'á', 'Ã©': 'é', 'Ã­': 'í', 'Ã³': 'ó', 'Ãº': 'ú', 'Ã±': 'ñ',
+    'Ã': 'Á', 'Ã‰': 'É', 'Ã': 'Í', 'Ã“': 'Ó', 'Ãš': 'Ú', 'Ã‘': 'Ñ',
+    'Â¿': '¿', 'Â¡': '¡', 'Â·': '·', 'â†’': '→', 'â€¢': '•'
+  };
+
+  ss.getSheets().forEach(function(hoja) {
+    var rango = hoja.getDataRange();
+    var valores = rango.getValues();
+    var cambio = false;
+
+    for (var fila = 0; fila < valores.length; fila++) {
+      for (var columna = 0; columna < valores[fila].length; columna++) {
+        if (typeof valores[fila][columna] !== 'string') continue;
+        var texto = valores[fila][columna];
+        Object.keys(reemplazos).forEach(function(mal) {
+          texto = texto.split(mal).join(reemplazos[mal]);
+        });
+        if (texto !== valores[fila][columna]) {
+          valores[fila][columna] = texto;
+          cambio = true;
+        }
+      }
+    }
+
+    if (cambio) rango.setValues(valores);
+  });
+
+  return 'Textos corregidos correctamente.';
 }
