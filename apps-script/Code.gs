@@ -1585,6 +1585,7 @@ function obtenerHistorialMovimientos(limit) {
         id: String(rIng[0]),
         fechaHora: String(rIng[1]),
         tipo: 'INGRESO',
+        idInsumo: idInsI,
         insumo: String(rIng[4]),
         unidad: unI,
         provincia: provI,
@@ -1610,6 +1611,7 @@ function obtenerHistorialMovimientos(limit) {
         id: String(rSal[0]),
         fechaHora: String(rSal[10]) || String(rSal[1]),
         tipo: 'SALIDA',
+        idInsumo: idInsS,
         insumo: String(rSal[5]),
         unidad: unS,
         provincia: provS,
@@ -1629,5 +1631,4 @@ function obtenerHistorialMovimientos(limit) {
 
   return crearRespuesta(true, movimientos.slice(0, limit || 20));
 }
-
 

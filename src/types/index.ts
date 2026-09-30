@@ -101,6 +101,7 @@ export interface MovimientoHistorial {
   id: string;
   fechaHora: string;
   tipo: 'INGRESO' | 'SALIDA';
+  idInsumo?: string;
   insumo: string;
   unidad: string;
   provincia: string;
