@@ -4,6 +4,7 @@ import { SolicitarInsumo } from './components/SolicitarInsumo';
 import { Dashboard } from './components/Dashboard';
 import { Autorizaciones } from './components/Autorizaciones';
 import { StockTable } from './components/StockTable';
+import { DemandaMensual } from './components/DemandaMensual';
 import { Ingresos } from './components/Ingresos';
 import { UltimosMovimientos } from './components/UltimosMovimientos';
 import { PinLoginModal } from './components/PinLoginModal';
@@ -78,6 +79,8 @@ export default function App() {
         )}
 
         {session && activeTab === 'stock' && <StockTable />}
+
+        {session && activeTab === 'demanda' && <DemandaMensual />}
 
         {session && activeTab === 'ingresos' && (
           <Ingresos

@@ -5,15 +5,10 @@ import {
   FileText,
   TrendingDown,
   Package,
-  Layers,
   CheckCircle2,
   DollarSign,
   ArrowUpRight,
   Sparkles,
-  Calendar,
-  ShoppingCart,
-  ShieldCheck,
-  TrendingUp,
 } from 'lucide-react';
 import { StockItem, Ingreso, Salida } from '../types';
 import { PROVINCIAS } from '../data/config';
@@ -28,7 +23,6 @@ export const Dashboard: React.FC = () => {
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
-  const [mesFiltro, setMesFiltro] = useState<string>('todos');
 
   const loadData = async () => {
     setIsLoading(true);
@@ -111,31 +105,11 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  // Lista de meses disponibles para filtrar consumo (ej: "2026-09", "2026-10", etc.)
-  const mesesDisponibles = useMemo(() => {
-    const setMeses = new Set<string>();
-    for (const s of salidas) {
-      const fecha = s.fechaHoraAutorizacion || s.fechaHoraSolicitud;
-      if (fecha && fecha.length >= 7) {
-        setMeses.add(fecha.substring(0, 7));
-      }
-    }
-    return Array.from(setMeses).sort().reverse();
-  }, [salidas]);
-
   const metrics = useMemo(() => {
     const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.total || 0), 0);
     const salidasValidas = salidas.filter(
       (s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL'
     );
-
-    // Filtrar salidas por mes seleccionado si aplica
-    const salidasMes = mesFiltro === 'todos'
-      ? salidasValidas
-      : salidasValidas.filter((s) => {
-          const fecha = s.fechaHoraAutorizacion || s.fechaHoraSolicitud;
-          return fecha && fecha.startsWith(mesFiltro);
-        });
 
     const totalSalidasMonto = salidasValidas.reduce((acc, curr) => acc + (curr.valorSalida || 0), 0);
     const valorStockActual = stockList.reduce((acc, curr) => acc + (curr.valorStock || 0), 0);
@@ -191,67 +165,6 @@ export const Dashboard: React.FC = () => {
       .sort((a, b) => b.cantidad - a.cantidad)
       .slice(0, 5);
 
-    // =========================================================================
-    // PLANIFICACIÓN Y ANÁLISIS DE DEMANDA MENSUAL (Para Marcelo Pereyra)
-    // Calcula: Consumo del período, Rotación, Pedido sugerido (Consumo + Backup de Seguridad)
-    // =========================================================================
-    const consumoPorInsumo = new Map<string, { totalRetirado: number; valorTotal: number; retirosCount: number }>();
-    for (const s of salidasMes) {
-      const id = s.idInsumo;
-      const prev = consumoPorInsumo.get(id) || { totalRetirado: 0, valorTotal: 0, retirosCount: 0 };
-      prev.totalRetirado += s.cantidadAutorizada;
-      prev.valorTotal += s.valorSalida || 0;
-      prev.retirosCount += 1;
-      consumoPorInsumo.set(id, prev);
-    }
-
-    const planDemandaMensual = stockList.map((item) => {
-      const consumo = consumoPorInsumo.get(item.idInsumo) || { totalRetirado: 0, valorTotal: 0, retirosCount: 0 };
-      const consumido = consumo.totalRetirado;
-
-      // Sugerencia de compra mensual inteligente:
-      // Pedido = Consumo estimado del mes + Margen de seguridad (Stock mínimo de backup) - Lo que ya tenemos
-      const backupSeguridad = item.stockMinimo || Math.round(item.stockObjetivo * 0.3) || 1;
-      const necesidadTotal = consumido + backupSeguridad;
-      const pedidoSugerido = Math.max(0, necesidadTotal - item.stockActual);
-
-      // Nivel de rotación: Alta (>10 o >stockMinimo), Media (>0), Sin movimiento (0)
-      let rotacion: 'ALTA' | 'MEDIA' | 'BAJA' | 'SIN_MOVIMIENTO' = 'SIN_MOVIMIENTO';
-      if (consumido > 0) {
-        if (consumido >= item.stockMinimo && item.stockMinimo > 0) {
-          rotacion = 'ALTA';
-        } else if (consumido > 2) {
-          rotacion = 'MEDIA';
-        } else {
-          rotacion = 'BAJA';
-        }
-      }
-
-      return {
-        id: item.idInsumo,
-        insumo: item.insumo,
-        categoria: item.categoria,
-        provincia: item.provincia,
-        unidad: item.unidad,
-        stockActual: item.stockActual,
-        stockMinimo: item.stockMinimo,
-        stockObjetivo: item.stockObjetivo,
-        consumido,
-        costoPromedio: item.costoPromedio || 0,
-        montoConsumido: consumo.valorTotal,
-        backupSeguridad,
-        pedidoSugerido,
-        costoPedidoSugerido: pedidoSugerido * (item.costoPromedio || 0),
-        rotacion,
-      };
-    });
-
-    // Ordenar primero los que tuvieron más demanda/consumo
-    planDemandaMensual.sort((a, b) => {
-      if (b.consumido !== a.consumido) return b.consumido - a.consumido;
-      return b.pedidoSugerido - a.pedidoSugerido;
-    });
-
     // Consumo por sector
     const sectorMap = new Map<string, number>();
     for (const s of salidasValidas) {
@@ -288,24 +201,20 @@ export const Dashboard: React.FC = () => {
       costoReposicionTotal,
       topFaltantes,
       topInsumos,
-      planDemandaMensual,
       porSector,
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, ingresos, salidas, mesFiltro]);
+  }, [stockList, ingresos, salidas]);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
       {/* Header Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            Panel Operativo de Inventario & Consumo
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            Panel Operativo
           </h1>
-          <span className="text-xs text-slate-500">
-            Control de existencias, semáforo de reposición y análisis de costos en tiempo real
-          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -366,10 +275,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div className="text-xs font-bold text-red-950">
-                ¡Atención!: {metrics.criticosCount} {metrics.criticosCount === 1 ? 'insumo en quiebre' : 'insumos en quiebre'} de stock
-              </div>
-              <div className="text-[11px] text-red-700">
-                Se requiere reposición urgente para no demorar trabajos en taller. Costo estimado para reponer todo: <strong>${Math.round(metrics.costoReposicionTotal).toLocaleString('es-AR')}</strong>.
+                {metrics.criticosCount} {metrics.criticosCount === 1 ? 'insumo crítico' : 'insumos críticos'} · Reponer: <strong>${Math.round(metrics.costoReposicionTotal).toLocaleString('es-AR')}</strong>
               </div>
             </div>
           </div>
@@ -437,136 +343,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ===================================================================== */}
-      {/* NUEVA SECCIÓN: PLANIFICADOR DE DEMANDA MENSUAL & SUGERENCIA DE PEDIDOS */}
-      {/* ===================================================================== */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                <ShoppingCart className="w-4 h-4" />
-              </div>
-              <h2 className="text-base font-bold text-slate-900">
-                Demanda Mensual & Cálculo de Pedidos Sugeridos
-              </h2>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Calcula el consumo mensual de cada insumo y cuánto pedir para cubrir la demanda asegurando stock de backup
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Período:</span>
-              <select
-                value={mesFiltro}
-                onChange={(e) => setMesFiltro(e.target.value)}
-                className="bg-transparent font-semibold text-slate-800 focus:outline-none cursor-pointer"
-              >
-                <option value="todos">Histórico Total</option>
-                {mesesDisponibles.map((m) => (
-                  <option key={m} value={m}>
-                    Mes: {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Tabla Inteligente de Demanda y Sugerencia de Compra */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-semibold uppercase">
-              <tr>
-                <th className="py-2.5 px-3">Insumo</th>
-                <th className="py-2.5 px-3">Base</th>
-                <th className="py-2.5 px-3 text-right">Stock Actual</th>
-                <th className="py-2.5 px-3 text-right text-indigo-700 bg-indigo-50/50">
-                  Consumo Mes
-                </th>
-                <th className="py-2.5 px-3 text-center">Rotación</th>
-                <th className="py-2.5 px-3 text-right">Backup Mínimo</th>
-                <th className="py-2.5 px-3 text-right bg-amber-50 font-bold text-amber-950">
-                  Pedido Sugerido
-                </th>
-                <th className="py-2.5 px-3 text-right">Costo Estimado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-mono text-xs">
-              {metrics.planDemandaMensual.map((item) => (
-                <tr key={item.id + item.provincia} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="py-2 px-3 font-sans">
-                    <span className="font-bold text-slate-900 block">{item.insumo}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">{item.id} · {item.categoria}</span>
-                  </td>
-                  <td className="py-2 px-3 font-sans text-slate-600">{item.provincia}</td>
-                  <td className="py-2 px-3 text-right font-bold text-slate-900">
-                    {item.stockActual} <span className="font-normal text-[10px] text-slate-400">{item.unidad}</span>
-                  </td>
-                  <td className="py-2 px-3 text-right font-black text-indigo-900 bg-indigo-50/30">
-                    {item.consumido > 0 ? (
-                      <span>{item.consumido} {item.unidad}</span>
-                    ) : (
-                      <span className="text-slate-300 font-normal">0</span>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-center font-sans">
-                    {item.rotacion === 'ALTA' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">
-                        <TrendingUp className="w-3 h-3" /> Alta Demanda
-                      </span>
-                    ) : item.rotacion === 'MEDIA' ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700">
-                        Media
-                      </span>
-                    ) : item.rotacion === 'BAJA' ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-normal bg-slate-100 text-slate-600">
-                        Baja
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 text-[10px]">Sin salidas</span>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-right text-slate-600">
-                    {item.backupSeguridad} {item.unidad}
-                  </td>
-                  <td className="py-2 px-3 text-right font-bold bg-amber-50/70 text-amber-950">
-                    {item.pedidoSugerido > 0 ? (
-                      <span className="text-amber-900 font-black">
-                        +{item.pedidoSugerido} {item.unidad}
-                      </span>
-                    ) : (
-                      <span className="text-emerald-600 font-sans font-medium text-[11px] flex items-center justify-end gap-1">
-                        <ShieldCheck className="w-3.5 h-3.5" /> Cubierto
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2 px-3 text-right font-bold text-slate-900">
-                    {item.costoPedidoSugerido > 0 ? (
-                      `$ ${Math.round(item.costoPedidoSugerido).toLocaleString('es-AR')}`
-                    ) : (
-                      <span className="text-slate-300">$ 0</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2">
-          <span>
-            💡 <strong>Fórmula de cálculo automático:</strong> Pedido Sugerido = Consumo Mensual + Stock de Backup (mínimo de seguridad) - Stock Actual.
-          </span>
-          <span className="font-mono font-bold text-slate-900">
-            Total presupuesto estimado: $ {Math.round(metrics.planDemandaMensual.reduce((a, b) => a + b.costoPedidoSugerido, 0)).toLocaleString('es-AR')}
-          </span>
-        </div>
-      </div>
-
       {/* Sección Gráfica 1: Semáforo de Salud de Inventario + Top Faltantes a Pedir */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* Gráfico Visual de Estado del Inventario (Barra de Salud) */}
@@ -580,9 +356,6 @@ export const Dashboard: React.FC = () => {
                 Total: {stockList.length} ítems
               </span>
             </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Distribución de existencias respecto al punto de pedido y niveles mínimos
-            </p>
 
             {/* Barra Segmentada de Salud de Stock */}
             <div className="w-full h-4 rounded-full bg-slate-100 overflow-hidden flex shadow-inner mb-4">
@@ -645,13 +418,6 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           </div>
-
-          <div className="pt-4 border-t border-slate-100 mt-4 text-[11px] text-slate-500 flex justify-between items-center">
-            <span>Índice de disponibilidad:</span>
-            <span className="font-mono font-bold text-slate-800">
-              {metrics.porcSuficiente}% disponible
-            </span>
-          </div>
         </div>
 
         {/* Gráfico de Barras: Lo que falta reponer con mayor urgencia */}
@@ -669,9 +435,6 @@ export const Dashboard: React.FC = () => {
                 Ver todos &rarr;
               </button>
             </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Insumos con mayor brecha entre stock actual y el stock objetivo de Autosol
-            </p>
 
             <div className="space-y-3">
               {metrics.topFaltantes.length === 0 ? (
@@ -720,7 +483,7 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs text-slate-600">
-            <span>Costo total estimado para nivelar estos 5 insumos:</span>
+            <span>Costo para nivelar top 5:</span>
             <span className="font-mono font-bold text-slate-900">
               $ {Math.round(metrics.topFaltantes.reduce((a, c) => a + c.costoReponer, 0)).toLocaleString('es-AR')}
             </span>
@@ -740,9 +503,6 @@ export const Dashboard: React.FC = () => {
               $ {Math.round(metrics.totalSalidasMonto).toLocaleString('es-AR')}
             </span>
           </div>
-          <p className="text-xs text-slate-500 mb-4">
-            Monto de insumos entregados y asignados a cada área de trabajo
-          </p>
 
           <div className="space-y-3">
             {metrics.porSector.length === 0 ? (
@@ -781,9 +541,6 @@ export const Dashboard: React.FC = () => {
             </h3>
             <span className="text-xs text-slate-500">Top 5 más retirados</span>
           </div>
-          <p className="text-xs text-slate-500 mb-4">
-            Insumos entregados con mayor frecuencia a los mecánicos y colaboradores
-          </p>
 
           <div className="space-y-2">
             {metrics.topInsumos.length === 0 ? (
