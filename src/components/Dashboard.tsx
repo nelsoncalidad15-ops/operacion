@@ -13,15 +13,20 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Truck,
+  PackageCheck,
 } from 'lucide-react';
-import { StockItem, MovimientoHistorial, AuthSession } from '../types';
+import { StockItem, MovimientoHistorial, AuthSession, PedidoEnCamino } from '../types';
 import { PROVINCIAS, SECTORES } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
+import { ModalRecepcionPedido } from './ModalRecepcionPedido';
 
 export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
+  const [pedidosEnCamino, setPedidosEnCamino] = useState<PedidoEnCamino[]>([]);
+  const [recepcionModalItem, setRecepcionModalItem] = useState<any | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
@@ -48,12 +53,30 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
       setMovimientos((movimientosRes.data || []).filter((m) =>
         !(session.provincia || provinciaFiltro) || m.provincia.toLowerCase() === (session.provincia || provinciaFiltro).toLowerCase()
       ));
+      setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
       setLoadError(err.message || 'No se pudieron cargar los datos.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleMarcarPedido = (item: { id: string; insumo: string; provincia: string; unidad: string; deficit: number }) => {
+    api.marcarPedidoEnCamino({
+      idInsumo: item.id,
+      insumo: item.insumo,
+      provincia: item.provincia,
+      unidad: item.unidad,
+      cantidadPedida: item.deficit,
+      responsable: session.responsableNombre,
+    });
+    setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
+  };
+
+  const handleCancelarPedido = (idInsumo: string, provincia: string) => {
+    api.quitarPedidoEnCamino(idInsumo, provincia);
+    setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
   };
 
   useEffect(() => {
@@ -109,6 +132,9 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
       .filter((s) => s.cantidadReponer > 0 || s.estado === 'CRITICO' || s.estado === 'CERCA_MINIMO')
       .map((s) => {
         const deficit = s.cantidadReponer > 0 ? s.cantidadReponer : Math.max(0, s.stockObjetivo - s.stockActual);
+        const pedido = pedidosEnCamino.find(
+          (p) => p.idInsumo === s.idInsumo && p.provincia.toLowerCase() === s.provincia.toLowerCase()
+        );
         return {
           id: s.idInsumo,
           insumo: s.insumo,
@@ -119,10 +145,23 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
           deficit,
           estado: s.estado,
           costoReponer: deficit * (s.costoPromedio || 0),
+          costoPromedio: s.costoPromedio || 0,
+          pedidoEnCamino: pedido || null,
         };
       })
-      .sort((a, b) => b.deficit - a.deficit)
-      .slice(0, 5);
+      .sort((a, b) => {
+        // Primero los que NO fueron pedidos para que el usuario sepa qué falta ordenar
+        if (!a.pedidoEnCamino && b.pedidoEnCamino) return -1;
+        if (a.pedidoEnCamino && !b.pedidoEnCamino) return 1;
+        return b.deficit - a.deficit;
+      })
+      .slice(0, 6);
+
+    const criticosPendientes = criticos.filter(
+      (c) => !pedidosEnCamino.some((p) => p.idInsumo === c.idInsumo && p.provincia.toLowerCase() === c.provincia.toLowerCase())
+    ).length;
+    const criticosEnCamino = criticos.length - criticosPendientes;
+    const totalEnCamino = pedidosEnCamino.length;
 
     // Insumos más demandados (Salidas generales)
     const insumoMap = new Map<string, { nombre: string; cantidad: number; unidad?: string }>();
@@ -165,6 +204,9 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
       comprasCount: ingresos.length,
       tasaAprobacion,
       criticosCount: criticos.length,
+      criticosPendientes,
+      criticosEnCamino,
+      totalEnCamino,
       bajosCount: bajos.length,
       suficientesCount: suficientes.length,
       porcCritico,
@@ -177,7 +219,7 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, movimientos]);
+  }, [stockList, movimientos, pedidosEnCamino]);
 
   const consumoColaboradores = useMemo(() => {
     const ahora = new Date();
@@ -343,8 +385,8 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
         </div>
       </div>
 
-      {/* Alerta Destacada si hay Insumos Críticos */}
-      {metrics.criticosCount > 0 && (
+      {/* Alerta Destacada si hay Insumos Críticos Pendientes */}
+      {metrics.criticosPendientes > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0">
@@ -352,7 +394,15 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
             </div>
             <div>
               <div className="text-xs font-bold text-red-950">
-                {metrics.criticosCount} {metrics.criticosCount === 1 ? 'insumo crítico' : 'insumos críticos'} · Reponer: <strong>${Math.round(metrics.costoReposicionTotal).toLocaleString('es-AR')}</strong>
+                {metrics.criticosPendientes} {metrics.criticosPendientes === 1 ? 'insumo crítico pendiente de pedir' : 'insumos críticos pendientes de pedir'} · Reponer: <strong>${Math.round(metrics.costoReposicionTotal).toLocaleString('es-AR')}</strong>
+                {metrics.criticosEnCamino > 0 && (
+                  <span className="ml-2 font-normal text-sky-800 text-[11px]">
+                    (y {metrics.criticosEnCamino} ya pedidos en camino)
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-red-700 mt-0.5">
+                Podés hacer el pedido y marcarlo como &quot;Ya lo pedí&quot; para que el sistema sepa que está en viaje.
               </div>
             </div>
           </div>
@@ -361,6 +411,31 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
             className="text-xs font-semibold text-red-700 hover:text-red-900 underline ml-2 shrink-0"
           >
             Ver orden de pedido &rarr;
+          </button>
+        </div>
+      )}
+
+      {/* Banner Informativo si todos los críticos ya están en camino */}
+      {metrics.criticosPendientes === 0 && metrics.totalEnCamino > 0 && (
+        <div className="bg-sky-50 border border-sky-200 rounded-xl p-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-sky-600 text-white flex items-center justify-center shrink-0">
+              <Truck className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-sky-950">
+                Insumos pedidos al proveedor ({metrics.totalEnCamino} en camino hacia pañol)
+              </div>
+              <div className="text-[11px] text-sky-700 mt-0.5">
+                Los pedidos ya fueron emitidos. Cuando llegue la mercadería, presiona &quot;Recibir&quot; para sumarla al stock.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowReporteModal(true)}
+            className="text-xs font-semibold text-sky-800 hover:text-sky-950 underline ml-2 shrink-0"
+          >
+            Ver pedidos en curso &rarr;
           </button>
         </div>
       )}
@@ -525,30 +600,70 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
                   const actualPct = Math.min(100, Math.round((item.stockActual / maxVal) * 100));
 
                   return (
-                    <div key={item.id + item.provincia} className="space-y-1">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-medium text-slate-800 truncate max-w-[220px] sm:max-w-xs">
+                    <div key={item.id + item.provincia} className="space-y-1.5 p-2 rounded-lg bg-slate-50/60 hover:bg-slate-50 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
+                        <span className="font-semibold text-slate-800 truncate max-w-[220px] sm:max-w-xs">
                           {item.insumo}
-                          <span className="text-[10px] text-slate-400 ml-1.5">
+                          <span className="text-[10px] text-slate-400 font-normal ml-1.5">
                             ({item.provincia})
                           </span>
                         </span>
-                        <div className="flex items-center gap-2 font-mono">
-                          <span className="text-[11px] text-slate-500">
-                            Tiene: <strong>{item.stockActual}</strong> / Obj: {item.stockObjetivo}
+
+                        <div className="flex flex-wrap items-center gap-1.5 font-mono">
+                          <span className="text-[11px] text-slate-500 font-sans mr-1">
+                            Stock: <strong>{item.stockActual}</strong> / Obj: {item.stockObjetivo}
                           </span>
-                          <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">
-                            Faltan {item.deficit} {item.unidad}
-                          </span>
+
+                          {item.pedidoEnCamino ? (
+                            <div className="flex items-center gap-1 font-sans">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200 flex items-center gap-1">
+                                <Truck className="w-3 h-3 text-sky-600" />
+                                En camino (+{item.pedidoEnCamino.cantidadPedida} {item.unidad})
+                              </span>
+                              <button
+                                onClick={() => setRecepcionModalItem(item)}
+                                className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-semibold flex items-center gap-1 transition-colors"
+                                title="Ingresar mercadería que llegó al pañol"
+                              >
+                                <PackageCheck className="w-3 h-3" />
+                                Recibir
+                              </button>
+                              <button
+                                onClick={() => handleCancelarPedido(item.id, item.provincia)}
+                                className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 text-[10px]"
+                                title="Desmarcar / Cancelar pedido"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 font-sans">
+                              <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-800">
+                                Faltan {item.deficit} {item.unidad}
+                              </span>
+                              <button
+                                onClick={() => handleMarcarPedido(item)}
+                                className="px-2 py-0.5 rounded border border-slate-200 hover:border-sky-300 hover:bg-sky-50 text-slate-700 hover:text-sky-800 text-[10px] font-semibold flex items-center gap-1 transition-colors shadow-2xs"
+                                title="Marcar que ya hiciste el pedido al proveedor y está en camino"
+                              >
+                                <Truck className="w-3 h-3 text-sky-600" />
+                                Ya lo pedí
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
                       {/* Barra de progreso de llenado de stock */}
-                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden flex">
+                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden flex">
                         <div
                           style={{ width: `${actualPct}%` }}
                           className={`h-full transition-all duration-300 ${
-                            item.estado === 'CRITICO' ? 'bg-red-500' : 'bg-amber-400'
+                            item.pedidoEnCamino
+                              ? 'bg-sky-500'
+                              : item.estado === 'CRITICO'
+                              ? 'bg-red-500'
+                              : 'bg-amber-400'
                           }`}
                         />
                       </div>
@@ -826,6 +941,15 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
         onClose={() => setShowReporteModal(false)}
         stockList={stockList}
         provinciaFiltro={provinciaFiltro}
+      />
+
+      {/* Modal de Recepción de Pedidos En Camino */}
+      <ModalRecepcionPedido
+        isOpen={Boolean(recepcionModalItem)}
+        onClose={() => setRecepcionModalItem(null)}
+        session={session}
+        item={recepcionModalItem}
+        onSuccess={loadData}
       />
     </div>
   );

@@ -116,3 +116,15 @@ export interface MovimientoHistorial {
   sector?: string;
 }
 
+export interface PedidoEnCamino {
+  idInsumo: string;
+  insumo: string;
+  provincia: string;
+  unidad: string;
+  cantidadPedida: number;
+  fechaPedido: string;
+  responsable?: string;
+  proveedor?: string;
+  observaciones?: string;
+}
+

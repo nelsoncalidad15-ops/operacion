@@ -8,6 +8,7 @@ import {
   MovimientoHistorial,
   EstadoStock,
   Colaborador,
+  PedidoEnCamino,
 } from '../types';
 import {
   INITIAL_INSUMOS,
@@ -22,6 +23,7 @@ const STORAGE_KEY_INGRESOS = 'ci_ingresos_v1';
 const STORAGE_KEY_SALIDAS = 'ci_salidas_v1';
 const STORAGE_KEY_COLABORADORES = 'ci_colaboradores_v1';
 const STORAGE_KEY_RECENT_COLABORADORES = 'ci_recent_colaboradores_v1';
+const STORAGE_KEY_PEDIDOS_EN_CAMINO = 'ci_pedidos_en_camino_v1';
 const STORAGE_KEY_APPS_SCRIPT_URL = 'ci_apps_script_url';
 const STORAGE_KEY_SESSION = 'ci_auth_session';
 const PRODUCTION_API_URL =
@@ -893,11 +895,65 @@ class ApiService {
     ingresos.unshift(nuevoIngreso);
     this.setStoredIngresos(ingresos);
 
+    // Si había un pedido en camino para este insumo, se marca como recibido automáticamente
+    this.quitarPedidoEnCamino(payload.idInsumo, payload.provincia);
+
     return {
       ok: true,
       data: nuevoIngreso,
       message: `Ingreso registrado exitosamente. Total: $ ${total.toLocaleString('es-AR')}`,
     };
+  }
+
+  // ==========================================
+  // PEDIDOS EN CAMINO (GESTIÓN DE COMPRAS)
+  // ==========================================
+  public getPedidosEnCamino(provincia?: string): PedidoEnCamino[] {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY_PEDIDOS_EN_CAMINO);
+      const items: PedidoEnCamino[] = data ? JSON.parse(data) : [];
+      if (provincia) {
+        return items.filter((p) => p.provincia.toLowerCase() === provincia.toLowerCase());
+      }
+      return items;
+    } catch {
+      return [];
+    }
+  }
+
+  public marcarPedidoEnCamino(pedido: Omit<PedidoEnCamino, 'fechaPedido'>): ApiResponse<PedidoEnCamino> {
+    try {
+      const pedidos = this.getPedidosEnCamino();
+      const index = pedidos.findIndex(
+        (p) => p.idInsumo === pedido.idInsumo && p.provincia.toLowerCase() === pedido.provincia.toLowerCase()
+      );
+      const nuevoPedido: PedidoEnCamino = {
+        ...pedido,
+        fechaPedido: this.getNowJujuyString(),
+      };
+      if (index >= 0) {
+        pedidos[index] = nuevoPedido;
+      } else {
+        pedidos.push(nuevoPedido);
+      }
+      localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(pedidos));
+      return { ok: true, data: nuevoPedido, message: 'Insumo marcado como pedido / en camino.' };
+    } catch (err: any) {
+      return { ok: false, message: err.message || 'Error guardando pedido en camino' };
+    }
+  }
+
+  public quitarPedidoEnCamino(idInsumo: string, provincia: string): ApiResponse<boolean> {
+    try {
+      const pedidos = this.getPedidosEnCamino();
+      const filtrados = pedidos.filter(
+        (p) => !(p.idInsumo === idInsumo && p.provincia.toLowerCase() === provincia.toLowerCase())
+      );
+      localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(filtrados));
+      return { ok: true, data: true, message: 'Pedido en camino removido.' };
+    } catch {
+      return { ok: false, data: false };
+    }
   }
 
   // ==========================================

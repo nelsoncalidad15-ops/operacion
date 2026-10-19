@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Calendar, FileText, RefreshCw, ShieldCheck, ShoppingCart, TrendingUp } from 'lucide-react';
-import { MovimientoHistorial, StockItem } from '../types';
+import { Calendar, FileText, RefreshCw, ShieldCheck, ShoppingCart, TrendingUp, Truck } from 'lucide-react';
+import { MovimientoHistorial, StockItem, PedidoEnCamino } from '../types';
 import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
@@ -10,6 +10,7 @@ const TEST_IDS = new Set(['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260
 export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provinciaFija }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
+  const [pedidosEnCamino, setPedidosEnCamino] = useState<PedidoEnCamino[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [provinciaFiltro, setProvinciaFiltro] = useState(provinciaFija || '');
   const [mesFiltro, setMesFiltro] = useState('todos');
@@ -27,6 +28,7 @@ export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provincia
           (m.estado === 'AUTORIZADO' || m.estado === 'AUTORIZADO PARCIAL') &&
           (!(provinciaFija || provinciaFiltro) || m.provincia.toLowerCase() === (provinciaFija || provinciaFiltro).toLowerCase())));
       }
+      setPedidosEnCamino(api.getPedidosEnCamino(provinciaFija || provinciaFiltro || undefined));
     } catch (err) { console.error('Error cargando demanda:', err); }
     finally { setIsLoading(false); }
   };
@@ -84,7 +86,34 @@ export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provincia
         <td className="py-2 px-3 font-sans"><span className="font-bold text-slate-900 block">{item.insumo}</span><span className="text-[10px] text-slate-400">{item.idInsumo} · {item.categoria}</span></td><td className="py-2 px-3 font-sans text-slate-600">{item.provincia}</td><td className="py-2 px-3 text-right font-bold">{item.stockActual} <small className="font-normal text-slate-400">{item.unidad}</small></td>
         <td className="py-2 px-3 text-right font-black text-indigo-900 bg-indigo-50/30">{item.consumoMensual > 0 ? `${Math.ceil(item.consumoMensual)} ${item.unidad}` : <span className="text-slate-300 font-normal">0</span>}</td>
         <td className="py-2 px-3 text-center font-sans">{item.rotacion === 'ALTA' ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700"><TrendingUp className="w-3 h-3" />Alta</span> : item.rotacion === 'MEDIA' ? <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Media</span> : item.rotacion === 'BAJA' ? <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Baja</span> : <span className="text-slate-300">—</span>}</td>
-        <td className="py-2 px-3 text-right text-slate-600">{item.puntoPedido} {item.unidad}</td><td className="py-2 px-3 text-right text-slate-600">{item.nivelObjetivo} {item.unidad}</td><td className="py-2 px-3 text-right font-bold bg-amber-50/70">{item.pedidoSugerido > 0 ? <span className="text-amber-900 font-black">+{item.pedidoSugerido} {item.unidad}</span> : <span className="text-emerald-600 font-sans font-medium inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" />OK</span>}</td><td className="py-2 px-3 text-right font-bold">{item.costoPedidoSugerido > 0 ? `$ ${Math.round(item.costoPedidoSugerido).toLocaleString('es-AR')}` : <span className="text-slate-300">$ 0</span>}</td>
+        <td className="py-2 px-3 text-right text-slate-600">{item.puntoPedido} {item.unidad}</td><td className="py-2 px-3 text-right text-slate-600">{item.nivelObjetivo} {item.unidad}</td>        <td className="py-2 px-3 text-right font-bold bg-amber-50/70">
+          {(() => {
+            const pedido = pedidosEnCamino.find((p) => p.idInsumo === item.idInsumo && p.provincia.toLowerCase() === item.provincia.toLowerCase());
+            if (pedido) {
+              return (
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                    <Truck className="w-3 h-3 text-sky-600" />
+                    En camino (+{pedido.cantidadPedida})
+                  </span>
+                  {item.pedidoSugerido > pedido.cantidadPedida && (
+                    <span className="text-[10px] text-amber-800 font-medium">
+                      Resta: +{item.pedidoSugerido - pedido.cantidadPedida}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+            if (item.pedidoSugerido > 0) {
+              return <span className="text-amber-900 font-black">+{item.pedidoSugerido} {item.unidad}</span>;
+            }
+            return (
+              <span className="text-emerald-600 font-sans font-medium inline-flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5" />OK
+              </span>
+            );
+          })()}
+        </td><td className="py-2 px-3 text-right font-bold">{item.costoPedidoSugerido > 0 ? `$ ${Math.round(item.costoPedidoSugerido).toLocaleString('es-AR')}` : <span className="text-slate-300">$ 0</span>}</td>
       </tr>)}</tbody></table>
     </div><div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs"><span className="text-slate-500">{plan.filter((p) => p.pedidoSugerido > 0).length} insumos a reponer</span><span className="font-mono font-bold">Total: $ {Math.round(totalPresupuesto).toLocaleString('es-AR')}</span></div></div>
     <ReporteFaltantesModal isOpen={showReporteModal} onClose={() => setShowReporteModal(false)} stockList={stockList} provinciaFiltro={provinciaFiltro} />

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Printer, AlertTriangle, X, CheckCircle2, Download } from 'lucide-react';
+import { Printer, AlertTriangle, X, CheckCircle2, Download, Truck } from 'lucide-react';
 import { StockItem } from '../types';
+import { api } from '../services/api';
 
 interface ReporteFaltantesModalProps {
   isOpen: boolean;
@@ -16,6 +17,9 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
   provinciaFiltro,
 }) => {
   if (!isOpen) return null;
+
+  const pedidosEnCamino = api.getPedidosEnCamino(provinciaFiltro || undefined);
+  const pedidosMap = new Map(pedidosEnCamino.map((p) => [`${p.idInsumo}_${p.provincia.toLowerCase()}`, p]));
 
   // Filtrar insumos faltantes o críticos
   const faltantes = stockList.filter(
@@ -36,6 +40,7 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
 
   const totalCriticos = faltantes.filter((i) => i.estado === 'CRITICO').length;
   const totalBajos = faltantes.filter((i) => i.estado === 'CERCA_MINIMO').length;
+  const totalEnCamino = faltantes.filter((i) => pedidosMap.has(`${i.idInsumo}_${i.provincia.toLowerCase()}`)).length;
 
   const handlePrint = () => {
     window.print();
@@ -57,20 +62,24 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
       'Estado',
     ];
 
-    const rows = faltantes.map((i) => [
-      `"${i.idInsumo}"`,
-      `"${i.insumo.replace(/"/g, '""')}"`,
-      `"${i.categoria}"`,
-      `"${i.provincia}"`,
-      i.stockActual,
-      `"${i.unidad}"`,
-      i.stockMinimo,
-      i.stockObjetivo,
-      i.cantidadReponer,
-      i.costoPromedio ? Math.round(i.costoPromedio) : 0,
-      i.cantidadReponer > 0 ? Math.round(i.cantidadReponer * (i.costoPromedio || 0)) : 0,
-      `"${i.estado}"`,
-    ]);
+    const rows = faltantes.map((i) => {
+      const pedido = pedidosMap.get(`${i.idInsumo}_${i.provincia.toLowerCase()}`);
+      const estadoDesc = pedido ? `EN CAMINO (+${pedido.cantidadPedida} ${i.unidad})` : i.estado;
+      return [
+        `"${i.idInsumo}"`,
+        `"${i.insumo.replace(/"/g, '""')}"`,
+        `"${i.categoria}"`,
+        `"${i.provincia}"`,
+        i.stockActual,
+        `"${i.unidad}"`,
+        i.stockMinimo,
+        i.stockObjetivo,
+        i.cantidadReponer,
+        i.costoPromedio ? Math.round(i.costoPromedio) : 0,
+        i.cantidadReponer > 0 ? Math.round(i.cantidadReponer * (i.costoPromedio || 0)) : 0,
+        `"${estadoDesc}"`,
+      ];
+    });
 
     const csvContent =
       'data:text/csv;charset=utf-8,\uFEFF' +
@@ -217,10 +226,10 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
           </div>
 
           {/* Resumen de Costo Estimado con Colores Suaves y Profesionales */}
-          <div className="grid grid-cols-3 gap-3 mb-4 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-xs">
             <div className="p-2.5 bg-red-50/90 border border-red-200 rounded-lg">
               <span className="text-red-700 font-bold block text-[10px] uppercase">
-                Insumos en Quiebre / Crítico
+                En Quiebre / Crítico
               </span>
               <span className="text-base font-bold text-red-900 font-mono">
                 {totalCriticos}
@@ -228,15 +237,24 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
             </div>
             <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg">
               <span className="text-amber-800 font-bold block text-[10px] uppercase">
-                Insumos Cerca del Mínimo
+                Cerca del Mínimo
               </span>
               <span className="text-base font-bold text-amber-900 font-mono">
                 {totalBajos}
               </span>
             </div>
+            <div className="p-2.5 bg-sky-50/90 border border-sky-200 rounded-lg">
+              <span className="text-sky-800 font-bold block text-[10px] uppercase">
+                Pedidos en Camino
+              </span>
+              <span className="text-base font-bold text-sky-900 font-mono flex items-center gap-1">
+                <Truck className="w-3.5 h-3.5 text-sky-600 print:hidden" />
+                {totalEnCamino}
+              </span>
+            </div>
             <div className="p-2.5 bg-slate-100 border border-slate-200 rounded-lg">
               <span className="text-slate-600 font-bold block text-[10px] uppercase">
-                Inversión Estimada en Reposición
+                Inversión Estimada
               </span>
               <span className="text-base font-bold text-slate-900 font-mono">
                 $ {Math.round(totalCostoEstimado).toLocaleString('es-AR')}
@@ -281,10 +299,12 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
                         ? item.cantidadReponer
                         : Math.max(0, item.stockObjetivo - item.stockActual);
                     const subtotal = cantidadAPedir * (item.costoPromedio || 0);
+                    const pedido = pedidosMap.get(`${item.idInsumo}_${item.provincia.toLowerCase()}`);
+
                     return (
                       <tr
                         key={item.idInsumo + '_' + item.provincia}
-                        className={item.estado === 'CRITICO' ? 'bg-red-50/40' : 'hover:bg-slate-50/60'}
+                        className={pedido ? 'bg-sky-50/30 hover:bg-sky-50/50' : item.estado === 'CRITICO' ? 'bg-red-50/40 hover:bg-red-50/60' : 'hover:bg-slate-50/60'}
                       >
                         <td className="py-1.5 px-2.5 text-slate-500 font-sans text-[10px]">
                           {item.idInsumo}
@@ -321,7 +341,12 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
                           ${Math.round(subtotal).toLocaleString('es-AR')}
                         </td>
                         <td className="py-1.5 px-2.5 text-center font-sans">
-                          {item.estado === 'CRITICO' ? (
+                          {pedido ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                              <Truck className="w-2.5 h-2.5 text-sky-600 print:hidden" />
+                              EN CAMINO (+{pedido.cantidadPedida})
+                            </span>
+                          ) : item.estado === 'CRITICO' ? (
                             <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">
                               CRÍTICO
                             </span>
