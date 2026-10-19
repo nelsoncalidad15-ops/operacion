@@ -96,10 +96,12 @@ Para no exponer tu ID de planilla ni los PINs en el código:
 2. Baja hasta **Propiedades de la secuencia de comandos** (Script Properties).
 3. Agrega las siguientes propiedades:
    - `SPREADSHEET_ID`: El ID de tu hoja de Google Sheets (la parte entre `/d/` y `/edit` de la URL de tu planilla). *Nota: Si el script está vinculado directamente a la planilla (Extensiones > Apps Script), esto es opcional porque detecta la hoja activa.*
-   - `RESPONSABLES_JSON`: Diccionario en formato JSON de PINs a Nombres. Ejemplo:
+   - `RESPONSABLES_JSON`: JSON de PINs a responsables y bases. Cada PIN debe ser distinto. Ejemplo (reemplazar por PINs privados):
      ```json
-     {"1423":"Marcelo Pereyra","7852":"Pablo Guantay","9021":"Nelson Albarracín"}
+     {"111111":{"nombre":"Responsable Jujuy","provincia":"Jujuy"},"222222":{"nombre":"Responsable Salta","provincia":"Salta"}}
      ```
+     Los PINs se escriben como claves entre comillas. El valor `nombre` se registra en compras y autorizaciones; `provincia` limita las operaciones de ese PIN a su base. Al guardar esta propiedad, reemplaza los PINs predeterminados. La propiedad `SPREADSHEET_ID` se conserva sin cambios.
+     Pegá el código nuevo en el editor, guardá `RESPONSABLES_JSON` y enseguida actualizá la implementación web de Apps Script a una versión nueva. Durante ese cambio breve no uses la app. Si ya hay sesiones iniciadas, cerrá sesión y volvé a entrar para recibir la base asignada.
 
 ---
 
@@ -123,3 +125,4 @@ Para no exponer tu ID de planilla ni los PINs en el código:
 3. Pega la URL de tu Web App de Google Apps Script.
 4. Presiona **Probar y Guardar Conexión**.
 5. El sistema verificará el `ping` con tu Google Sheets y quedará conectado en tiempo real.
+

@@ -35,13 +35,8 @@ var CONFIG = {
   // Duración de la sesión de responsable (en segundos) para CacheService
   DURACION_SESION_SEG: 1800, // 30 minutos
 
-  // PINs por defecto (se recomienda configurar en Script Properties)
-  // Formato: PIN -> Nombre del Responsable
-  PINS_POR_DEFECTO: {
-    '1423': 'Marcelo Pereyra',
-    '7852': 'Pablo Guantay',
-    '9021': 'Nelson Albarracín'
-  }
+  // Los PINs se configuran exclusivamente en Script Properties.
+  PINS_POR_DEFECTO: {}
 };
 
 /**
@@ -59,13 +54,14 @@ function getSpreadsheet() {
  * Obtiene el mapa de responsables y sus PINs
  */
 function getResponsablesMap() {
+  var raw = PropertiesService.getScriptProperties().getProperty('RESPONSABLES_JSON');
+  if (!raw) return CONFIG.PINS_POR_DEFECTO;
   try {
-    var raw = PropertiesService.getScriptProperties().getProperty('RESPONSABLES_JSON');
-    if (raw) {
-      return JSON.parse(raw);
-    }
+    var responsables = JSON.parse(raw);
+    return responsables && typeof responsables === 'object' && !Array.isArray(responsables) ? responsables : {};
   } catch (e) {
     console.warn('Error leyendo RESPONSABLES_JSON de Script Properties: ' + e.message);
+    return {};
   }
-  return CONFIG.PINS_POR_DEFECTO;
 }
+

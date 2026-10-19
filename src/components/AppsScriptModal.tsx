@@ -94,11 +94,7 @@ var CONFIG = {
     'Ventas', 'Calidad', 'Logística', 'Mantenimiento'
   ],
   DURACION_SESION_SEG: 1800, // 30 minutos
-  PINS_POR_DEFECTO: {
-    '1423': 'Marcelo Pereyra',
-    '7852': 'Pablo Guantay',
-    '9021': 'Nelson Albarracín'
-  }
+  PINS_POR_DEFECTO: {}
 };
 
 function getSpreadsheet() {
@@ -602,7 +598,7 @@ function obtenerStock(provinciaFiltro) {
                 <p className="text-[var(--text-muted)]">
                   En <strong>Configuración del proyecto</strong> (ícono de engranaje) → <strong>Propiedades de la secuencia de comandos</strong>, agregá la propiedad <code>RESPONSABLES_JSON</code> con el formato:
                   <code className="block bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-[var(--accent)] p-2 rounded mt-1.5 font-mono text-[11px]">
-                    {`{"1423":"Marcelo Pereyra","7852":"Pablo Guantay","9021":"Nelson Albarracín"}`}
+                    {`{"111111":{"nombre":"Responsable Jujuy","provincia":"Jujuy"},"222222":{"nombre":"Responsable Salta","provincia":"Salta"}}`}
                   </code>
                 </p>
               </div>
@@ -667,3 +663,4 @@ function obtenerStock(provinciaFiltro) {
     </div>
   );
 };
+

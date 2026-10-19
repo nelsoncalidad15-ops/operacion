@@ -16,6 +16,9 @@ function registrarIngreso(payload, token) {
   }
 
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no está habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var idInsumo = String(payload.idInsumo || '').trim();
   var cantidad = parseNumeroSeguro(payload.cantidad);
   var precioUnitario = parseNumeroSeguro(payload.precioUnitario);
@@ -136,3 +139,4 @@ function obtenerProveedoresSugeridos() {
 
   return Object.keys(set).sort();
 }
+

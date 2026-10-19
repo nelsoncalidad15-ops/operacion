@@ -147,9 +147,10 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={onLogout}
                 className="px-2.5 py-1 text-xs text-slate-600 hover:text-red-600 rounded-md hover:bg-slate-100 flex items-center gap-1"
-                title={`Jefatura: ${session.responsableNombre}`}
+                title={`Responsable: ${session.responsableNombre}${session.provincia ? ` · ${session.provincia}` : ''}`}
               >
                 <LogOut className="w-3.5 h-3.5" />
+                {session.provincia && <span className="font-semibold">{session.provincia}</span>}
                 <span className="hidden sm:inline">Salir</span>
               </button>
             ) : (
@@ -236,3 +237,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

@@ -3,16 +3,16 @@ import { RefreshCw } from 'lucide-react';
 import { MovimientoHistorial } from '../types';
 import { api } from '../services/api';
 
-export const UltimosMovimientos: React.FC = () => {
+export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provinciaFija }) => {
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const res = await api.getUltimosMovimientos(30);
+      const res = await api.getUltimosMovimientos(provinciaFija ? 10000 : 30);
       if (res.ok && res.data) {
-        setMovimientos(res.data);
+        setMovimientos(provinciaFija ? res.data.filter((m) => m.provincia === provinciaFija).slice(0, 30) : res.data);
       }
     } catch (err: any) {
       console.error('Error cargando movimientos:', err);
@@ -113,3 +113,4 @@ export const UltimosMovimientos: React.FC = () => {
     </div>
   );
 };
+
