@@ -39,13 +39,8 @@ var CONFIG = {
   // Duración de la sesión de responsable (en segundos) para CacheService
   DURACION_SESION_SEG: 1800, // 30 minutos
 
-  // PINs por defecto (se recomienda configurar en Script Properties)
-  // Formato: PIN -> Nombre del Responsable
-  PINS_POR_DEFECTO: {
-    '1423': 'Marcelo Pereyra',
-    '7852': 'Pablo Guantay',
-    '9021': 'Nelson Albarracín'
-  }
+  // Los PINs se configuran exclusivamente en Script Properties.
+  PINS_POR_DEFECTO: {}
 };
 
 /**
@@ -63,15 +58,15 @@ function getSpreadsheet() {
  * Obtiene el mapa de responsables y sus PINs
  */
 function getResponsablesMap() {
+  var raw = PropertiesService.getScriptProperties().getProperty('RESPONSABLES_JSON');
+  if (!raw) return CONFIG.PINS_POR_DEFECTO;
   try {
-    var raw = PropertiesService.getScriptProperties().getProperty('RESPONSABLES_JSON');
-    if (raw) {
-      return JSON.parse(raw);
-    }
+    var responsables = JSON.parse(raw);
+    return responsables && typeof responsables === 'object' && !Array.isArray(responsables) ? responsables : {};
   } catch (e) {
     console.warn('Error leyendo RESPONSABLES_JSON de Script Properties: ' + e.message);
+    return {};
   }
-  return CONFIG.PINS_POR_DEFECTO;
 }
 
 // ============================================================================
@@ -553,9 +548,14 @@ function validarPinResponsable(pin) {
   var cleanPin = String(pin).trim();
   var mapaResponsables = getResponsablesMap();
 
-  var nombre = mapaResponsables[cleanPin];
-  if (!nombre) {
+  var responsable = mapaResponsables[cleanPin];
+  if (!responsable) {
     return crearRespuesta(false, null, 'PIN incorrecto. Acceso denegado.', 'PIN_INVALIDO');
+  }
+  var nombre = typeof responsable === 'string' ? responsable : String(responsable.nombre || '').trim();
+  var provincia = typeof responsable === 'string' ? '' : String(responsable.provincia || '').trim();
+  if (!nombre || (provincia && CONFIG.PROVINCIAS.indexOf(provincia) === -1)) {
+    return crearRespuesta(false, null, 'Configuracion del PIN invalida.', 'PIN_CONFIG_INVALIDA');
   }
 
   // Generar token de sesión único y efímero
@@ -566,6 +566,7 @@ function validarPinResponsable(pin) {
   var cache = CacheService.getScriptCache();
   var sessionData = JSON.stringify({
     responsableNombre: nombre,
+    provincia: provincia,
     creadoEn: Date.now(),
     expiraEn: Date.now() + (duracionSeg * 1000)
   });
@@ -575,6 +576,7 @@ function validarPinResponsable(pin) {
   return crearRespuesta(true, {
     token: token,
     responsableNombre: nombre,
+    provincia: provincia,
     expiresAt: Date.now() + (duracionSeg * 1000)
   }, 'PIN validado correctamente. Bienvenido/a ' + nombre);
 }
@@ -596,10 +598,24 @@ function verificarSesion(token) {
       cache.remove(token);
       return null;
     }
+    if (!parsed.provincia) {
+      var responsables = getResponsablesMap();
+      for (var pin in responsables) {
+        if (typeof responsables[pin] === 'object') {
+          cache.remove(token);
+          return null;
+        }
+      }
+    }
     return parsed;
   } catch (e) {
     return null;
   }
+}
+
+function sesionPuedeOperarProvincia(session, provincia) {
+  return !!session && (!session.provincia ||
+    String(session.provincia).toLowerCase() === String(provincia || '').trim().toLowerCase());
 }
 
 // ============================================================================
@@ -1041,6 +1057,9 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
 
     var idInsumo = String(solicitudData[4]).trim();
     var provincia = String(solicitudData[2]).trim();
+    if (!sesionPuedeOperarProvincia(session, provincia)) {
+      return crearRespuesta(false, null, 'Este PIN no esta habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+    }
 
     // Comprobación de concurrencia: consultar stock REAL en este instante
     var stockList = obtenerStock(provincia);
@@ -1133,6 +1152,10 @@ function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
     if (targetRowIndex === -1) {
       return crearRespuesta(false, null, 'La solicitud no fue encontrada.', 'NO_ENCONTRADA');
     }
+    var provincia = String(data[targetRowIndex - 1][2]).trim();
+    if (!sesionPuedeOperarProvincia(session, provincia)) {
+      return crearRespuesta(false, null, 'Este PIN no esta habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+    }
 
     var fechaHora = getFechaHoraActual();
     // Columna I (9) a P (16)
@@ -1176,6 +1199,9 @@ function registrarIngreso(payload, token) {
   }
 
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no esta habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var idInsumo = String(payload.idInsumo || '').trim();
   var cantidad = parseNumeroSeguro(payload.cantidad);
   var precioUnitario = parseNumeroSeguro(payload.precioUnitario);
@@ -1311,6 +1337,9 @@ function guardarInsumo(payload, token) {
   var categoria = String(payload.categoria || '').trim();
   var unidad = String(payload.unidad || '').trim();
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no esta habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var stockMinimo = parseNumeroSeguro(payload.stockMinimo);
   var stockObjetivo = parseNumeroSeguro(payload.stockObjetivo);
   var activo = String(payload.activo || 'Sí').trim();
@@ -1326,7 +1355,12 @@ function guardarInsumo(payload, token) {
   var data = hoja.getDataRange().getValues();
   var fila = -1;
   for (var i = 1; i < data.length; i++) {
-    if (id && String(data[i][0]).trim() === id) fila = i + 1;
+    if (id && String(data[i][0]).trim() === id) {
+      if (!sesionPuedeOperarProvincia(session, String(data[i][4]).trim())) {
+        return crearRespuesta(false, null, 'No se puede editar un insumo de otra base.', 'BASE_NO_AUTORIZADA');
+      }
+      fila = i + 1;
+    }
     if (!id && String(data[i][2]).trim().toLowerCase() === nombre.toLowerCase() &&
         String(data[i][4]).trim().toLowerCase() === provincia.toLowerCase()) {
       return crearRespuesta(false, null, 'Ya existe un insumo con ese nombre en la provincia.', 'DUPLICADO');
@@ -1352,6 +1386,9 @@ function guardarColaborador(payload, token) {
   var nombreOriginal = String(payload.nombreOriginal || '').trim();
   var sector = String(payload.sector || '').trim();
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no esta habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var activo = String(payload.activo || 'Sí').trim();
   if (!nombre || CONFIG.SECTORES.indexOf(sector) === -1 || !provincia) {
     return crearRespuesta(false, null, 'Completá nombre, sector y provincia.', 'CAMPOS_REQUERIDOS');
@@ -1527,8 +1564,13 @@ function handleRequest(e) {
         break;
 
       case 'limpiarMovimientosDePrueba':
-        var cleanMsg = limpiarMovimientosDePrueba();
-        result = crearRespuesta(true, { message: cleanMsg }, cleanMsg);
+        var sessionLimpieza = verificarSesion(payload.token);
+        if (!sessionLimpieza || sessionLimpieza.provincia) {
+          result = crearRespuesta(false, null, 'Se requiere un PIN administrador general.', 'NO_AUTORIZADO');
+        } else {
+          var cleanMsg = limpiarMovimientosDePrueba();
+          result = crearRespuesta(true, { message: cleanMsg }, cleanMsg);
+        }
         break;
 
       default:
@@ -1631,4 +1673,5 @@ function obtenerHistorialMovimientos(limit) {
 
   return crearRespuesta(true, movimientos.slice(0, limit || 20));
 }
+
 
