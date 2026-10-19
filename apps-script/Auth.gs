@@ -15,9 +15,15 @@ function validarPinResponsable(pin) {
   var cleanPin = String(pin).trim();
   var mapaResponsables = getResponsablesMap();
 
-  var nombre = mapaResponsables[cleanPin];
-  if (!nombre) {
+  var responsable = mapaResponsables[cleanPin];
+  if (!responsable) {
     return crearRespuesta(false, null, 'PIN incorrecto. Acceso denegado.', 'PIN_INVALIDO');
+  }
+  // Los valores antiguos en formato texto siguen funcionando sin restricción.
+  var nombre = typeof responsable === 'string' ? responsable : String(responsable.nombre || '').trim();
+  var provincia = typeof responsable === 'string' ? '' : String(responsable.provincia || '').trim();
+  if (!nombre || (provincia && CONFIG.PROVINCIAS.indexOf(provincia) === -1)) {
+    return crearRespuesta(false, null, 'Configuración del PIN inválida.', 'PIN_CONFIG_INVALIDA');
   }
 
   // Generar token de sesión único y efímero
@@ -28,6 +34,7 @@ function validarPinResponsable(pin) {
   var cache = CacheService.getScriptCache();
   var sessionData = JSON.stringify({
     responsableNombre: nombre,
+    provincia: provincia,
     creadoEn: Date.now(),
     expiraEn: Date.now() + (duracionSeg * 1000)
   });
@@ -37,8 +44,14 @@ function validarPinResponsable(pin) {
   return crearRespuesta(true, {
     token: token,
     responsableNombre: nombre,
+    provincia: provincia,
     expiresAt: Date.now() + (duracionSeg * 1000)
   }, 'PIN validado correctamente. Bienvenido/a ' + nombre);
+}
+
+function sesionPuedeOperarProvincia(session, provincia) {
+  return !!session && (!session.provincia ||
+    String(session.provincia).toLowerCase() === String(provincia || '').trim().toLowerCase());
 }
 
 /**
@@ -58,8 +71,19 @@ function verificarSesion(token) {
       cache.remove(token);
       return null;
     }
+    // Al activar PINs por base, invalida sesiones anteriores sin provincia.
+    if (!parsed.provincia) {
+      var responsables = getResponsablesMap();
+      for (var pin in responsables) {
+        if (typeof responsables[pin] === 'object') {
+          cache.remove(token);
+          return null;
+        }
+      }
+    }
     return parsed;
   } catch (e) {
     return null;
   }
 }
+
