@@ -193,7 +193,7 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
           <div className="border-b-2 border-slate-900 pb-3 mb-4 flex justify-between items-end">
             <div>
               <div className="text-[10px] tracking-widest text-slate-500 font-bold mb-0.5">
-                AUTOSOL JUJUY · TALLER & PAÑOL
+                AUTOSOL {provinciaFiltro ? provinciaFiltro.toUpperCase() : 'JUJUY Y SALTA'} · TALLER & PAÑOL
               </div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight">
                 ORDEN DE COMPRA & REPOSICIÓN DE INSUMOS
@@ -368,3 +368,4 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
     </div>
   );
 };
+
