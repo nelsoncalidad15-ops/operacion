@@ -997,10 +997,10 @@ class ApiService {
     };
   }
 
-  public async limpiarMovimientosDePrueba(): Promise<ApiResponse<{ message: string }>> {
+  public async limpiarMovimientosDePrueba(token: string): Promise<ApiResponse<{ message: string }>> {
     // Si está conectado a Apps Script, ejecutar la limpieza remota en la planilla Google Sheets
     if (this.isLiveConnected()) {
-      return await this.callAppsScript<{ message: string }>('limpiarMovimientosDePrueba');
+      return await this.callAppsScript<{ message: string }>('limpiarMovimientosDePrueba', { token });
     }
 
     // Limpieza local
