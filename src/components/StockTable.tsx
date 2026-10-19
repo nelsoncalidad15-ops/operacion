@@ -5,18 +5,18 @@ import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
-export const StockTable: React.FC = () => {
+export const StockTable: React.FC<{ provinciaFija?: string }> = ({ provinciaFija }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedProvincia, setSelectedProvincia] = useState<string>('');
+  const [selectedProvincia, setSelectedProvincia] = useState<string>(provinciaFija || '');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
 
   const loadStock = async () => {
     setIsLoading(true);
     try {
-      const res = await api.getStock(selectedProvincia || undefined);
+      const res = await api.getStock(provinciaFija || selectedProvincia || undefined);
       if (res.ok && res.data) {
         setStockList(res.data);
       }
@@ -86,8 +86,8 @@ export const StockTable: React.FC = () => {
             onChange={(e) => setSelectedProvincia(e.target.value)}
             className="text-xs py-1.5 px-2 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none"
           >
-            <option value="">Todas</option>
-            {PROVINCIAS.map((p) => (
+            {!provinciaFija && <option value="">Todas</option>}
+            {(provinciaFija ? [provinciaFija] : PROVINCIAS).map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>

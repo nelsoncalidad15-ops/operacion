@@ -86,6 +86,7 @@ export interface Responsable {
 export interface AuthSession {
   token: string;
   responsableNombre: string;
+  provincia?: string;
   expiresAt: number;
 }
 
@@ -111,4 +112,6 @@ export interface MovimientoHistorial {
   sectorOProveedor: string;
   estado: string;
   monto: number;
+  solicitante?: string;
+  sector?: string;
 }

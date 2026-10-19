@@ -19,7 +19,7 @@ export const Ingresos: React.FC<IngresosProps> = ({
   const [pinError, setPinError] = useState<string | null>(null);
   const [isValidatingPin, setIsValidatingPin] = useState<boolean>(false);
 
-  const [provincia, setProvincia] = useState<string>('Jujuy');
+  const [provincia, setProvincia] = useState<string>(session?.provincia || 'Jujuy');
   const [selectedInsumoId, setSelectedInsumoId] = useState<string>('');
   const [cantidad, setCantidad] = useState<number>(10);
   const [precioUnitario, setPrecioUnitario] = useState<number>(0);
@@ -33,6 +33,13 @@ export const Ingresos: React.FC<IngresosProps> = ({
 
   const [insumosList, setInsumosList] = useState<Insumo[]>([]);
   const [proveedoresSugeridos, setProveedoresSugeridos] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (session?.provincia) {
+      setProvincia(session.provincia);
+      setSelectedInsumoId('');
+    }
+  }, [session?.provincia]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -235,11 +242,11 @@ export const Ingresos: React.FC<IngresosProps> = ({
               Base
             </label>
             <div className="flex bg-slate-100 p-0.5 rounded-lg">
-              {PROVINCIAS.map((p) => (
+              {(session.provincia ? [session.provincia] : PROVINCIAS).map((p) => (
                 <button
                   key={p}
                   type="button"
-                  onClick={() => setProvincia(p)}
+                  onClick={() => { setProvincia(p); setSelectedInsumoId(''); setInsumosList([]); }}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     provincia === p ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
                   }`}

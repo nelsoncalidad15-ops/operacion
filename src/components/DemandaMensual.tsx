@@ -7,11 +7,11 @@ import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
 const TEST_IDS = new Set(['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260929-00002']);
 
-export const DemandaMensual: React.FC = () => {
+export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provinciaFija }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [provinciaFiltro, setProvinciaFiltro] = useState('');
+  const [provinciaFiltro, setProvinciaFiltro] = useState(provinciaFija || '');
   const [mesFiltro, setMesFiltro] = useState('todos');
   const [showReporteModal, setShowReporteModal] = useState(false);
 
@@ -19,13 +19,13 @@ export const DemandaMensual: React.FC = () => {
     setIsLoading(true);
     try {
       const [stockRes, movimientosRes] = await Promise.all([
-        api.getStock(provinciaFiltro || undefined), api.getUltimosMovimientos(10000),
+        api.getStock(provinciaFija || provinciaFiltro || undefined), api.getUltimosMovimientos(10000),
       ]);
       if (stockRes.ok && stockRes.data) setStockList(stockRes.data);
       if (movimientosRes.ok && movimientosRes.data) {
         setMovimientos(movimientosRes.data.filter((m) => m.tipo === 'SALIDA' && !TEST_IDS.has(m.id) &&
           (m.estado === 'AUTORIZADO' || m.estado === 'AUTORIZADO PARCIAL') &&
-          (!provinciaFiltro || m.provincia.toLowerCase() === provinciaFiltro.toLowerCase())));
+          (!(provinciaFija || provinciaFiltro) || m.provincia.toLowerCase() === (provinciaFija || provinciaFiltro).toLowerCase())));
       }
     } catch (err) { console.error('Error cargando demanda:', err); }
     finally { setIsLoading(false); }
@@ -72,7 +72,7 @@ export const DemandaMensual: React.FC = () => {
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={() => setShowReporteModal(true)} className="px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold flex items-center gap-1.5"><FileText className="w-4 h-4" />Reporte PDF</button>
         <div className="flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400" /><select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} className="bg-transparent font-semibold focus:outline-none"><option value="todos">Promedio histórico mensual</option>{mesesDisponibles.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
-        <select value={provinciaFiltro} onChange={(e) => setProvinciaFiltro(e.target.value)} className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white"><option value="">Todas las bases</option>{PROVINCIAS.map((p) => <option key={p} value={p}>{p}</option>)}</select>
+        <select value={provinciaFiltro} onChange={(e) => setProvinciaFiltro(e.target.value)} className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white">{!provinciaFija && <option value="">Todas las bases</option>}{(provinciaFija ? [provinciaFija] : PROVINCIAS).map((p) => <option key={p} value={p}>{p}</option>)}</select>
         <button onClick={loadData} className="p-1.5 rounded-lg border border-slate-200 text-slate-600" title="Actualizar"><RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} /></button>
       </div>
     </div>

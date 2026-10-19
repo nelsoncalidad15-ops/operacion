@@ -9,78 +9,48 @@ import {
   DollarSign,
   ArrowUpRight,
   Sparkles,
+  Users,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
-import { StockItem, Ingreso, Salida } from '../types';
-import { PROVINCIAS } from '../data/config';
+import { StockItem, MovimientoHistorial, AuthSession } from '../types';
+import { PROVINCIAS, SECTORES } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
-export const Dashboard: React.FC = () => {
+export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
-  const [ingresos, setIngresos] = useState<Ingreso[]>([]);
-  const [salidas, setSalidas] = useState<Salida[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
-  const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
+  const [provinciaFiltro, setProvinciaFiltro] = useState<string>(session.provincia || '');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
+
+  // Filtros para el análisis de consumo por colaborador
+  const [colabSectorFiltro, setColabSectorFiltro] = useState<string>('');
+  const [colabPeriodoFiltro, setColabPeriodoFiltro] = useState<string>('todos');
+  const [colabOrden, setColabOrden] = useState<'mas' | 'menos'>('mas');
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [stockRes] = await Promise.all([
-        api.getStock(provinciaFiltro || undefined),
+      setLoadError(null);
+      const [stockRes, movimientosRes] = await Promise.all([
+        api.getStock(session.provincia || provinciaFiltro || undefined),
+        api.getUltimosMovimientos(100000),
       ]);
-      if (stockRes.ok && stockRes.data) {
-        setStockList(stockRes.data);
+      if (!stockRes.ok || !movimientosRes.ok) {
+        throw new Error(stockRes.message || movimientosRes.message || 'No se pudieron cargar los datos.');
       }
-
-      const storedIngresos: Ingreso[] = JSON.parse(localStorage.getItem('ci_ingresos_v1') || '[]');
-      const storedSalidas: Salida[] = JSON.parse(localStorage.getItem('ci_salidas_v1') || '[]');
-
-      // Filtrar movimientos de prueba que venían en la maqueta inicial
-      const idsPruebaIngresos = [
-        'ING-20260920-00001',
-        'ING-20260921-00002',
-        'ING-20260922-00003',
-        'ING-20260925-00004',
-      ];
-      const compsPrueba = [
-        'FAC-A-0001-00084321',
-        'FAC-B-0003-00012903',
-        'FAC-A-0002-00045129',
-        'FAC-A-0001-00084550',
-      ];
-      const idsPruebaSalidas = ['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260929-00002'];
-
-      const ingresosReales = storedIngresos.filter(
-        (i) => !idsPruebaIngresos.includes(i.idMovimiento) && !compsPrueba.includes(i.comprobante)
-      );
-
-      const salidasReales = storedSalidas.filter(
-        (s) => !idsPruebaSalidas.includes(s.idSolicitud)
-      );
-
-      // Si localStorage aún tenía guardados los viejos de prueba, limpiarlos también del almacenamiento
-      if (ingresosReales.length !== storedIngresos.length) {
-        localStorage.setItem('ci_ingresos_v1', JSON.stringify(ingresosReales));
-      }
-      if (salidasReales.length !== storedSalidas.length) {
-        localStorage.setItem('ci_salidas_v1', JSON.stringify(salidasReales));
-      }
-
-      setIngresos(
-        provinciaFiltro
-          ? ingresosReales.filter((i) => i.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : ingresosReales
-      );
-
-      setSalidas(
-        provinciaFiltro
-          ? salidasReales.filter((s) => s.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : salidasReales
-      );
+      setStockList(stockRes.data || []);
+      setMovimientos((movimientosRes.data || []).filter((m) =>
+        !(session.provincia || provinciaFiltro) || m.provincia.toLowerCase() === (session.provincia || provinciaFiltro).toLowerCase()
+      ));
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
+      setLoadError(err.message || 'No se pudieron cargar los datos.');
     } finally {
       setIsLoading(false);
     }
@@ -96,7 +66,7 @@ export const Dashboard: React.FC = () => {
     }
     setIsCleaning(true);
     try {
-      await api.limpiarMovimientosDePrueba();
+      await api.limpiarMovimientosDePrueba(session.token);
       await loadData();
     } catch (e) {
       console.error('Error limpiando datos de prueba:', e);
@@ -106,16 +76,16 @@ export const Dashboard: React.FC = () => {
   };
 
   const metrics = useMemo(() => {
-    const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.total || 0), 0);
-    const salidasValidas = salidas.filter(
-      (s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL'
-    );
+    const ingresos = movimientos.filter((m) => m.tipo === 'INGRESO' && /(?:^Compra$|\(Compra\)\s*$)/i.test(m.sectorOProveedor));
+    const salidas = movimientos.filter((m) => m.tipo === 'SALIDA');
+    const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.monto || 0), 0);
+    const salidasValidas = salidas.filter((s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL');
 
-    const totalSalidasMonto = salidasValidas.reduce((acc, curr) => acc + (curr.valorSalida || 0), 0);
+    const totalSalidasMonto = salidasValidas.reduce((acc, curr) => acc + (curr.monto || 0), 0);
     const valorStockActual = stockList.reduce((acc, curr) => acc + (curr.valorStock || 0), 0);
 
-    const totalSolicitado = salidas.reduce((acc, curr) => acc + (curr.cantidadSolicitada || 0), 0);
-    const totalAutorizado = salidas.reduce((acc, curr) => acc + (curr.cantidadAutorizada || 0), 0);
+    const totalSolicitado = salidas.reduce((acc, curr) => acc + (curr.solicitado || 0), 0);
+    const totalAutorizado = salidasValidas.reduce((acc, curr) => acc + (curr.cantidad || 0), 0);
     const tasaAprobacion = totalSolicitado > 0 ? Math.round((totalAutorizado / totalSolicitado) * 100) : 100;
 
     // Conteo de Estados de Stock (Salud del inventario)
@@ -157,9 +127,10 @@ export const Dashboard: React.FC = () => {
     // Insumos más demandados (Salidas generales)
     const insumoMap = new Map<string, { nombre: string; cantidad: number; unidad?: string }>();
     for (const s of salidasValidas) {
-      const existing = insumoMap.get(s.idInsumo) || { nombre: s.insumo, cantidad: 0 };
-      existing.cantidad += s.cantidadAutorizada;
-      insumoMap.set(s.idInsumo, existing);
+      const key = `${s.provincia}:${s.idInsumo || s.insumo}`;
+      const existing = insumoMap.get(key) || { nombre: s.insumo, cantidad: 0, unidad: s.unidad };
+      existing.cantidad += s.cantidad;
+      insumoMap.set(key, existing);
     }
     const topInsumos = Array.from(insumoMap.values())
       .sort((a, b) => b.cantidad - a.cantidad)
@@ -168,8 +139,8 @@ export const Dashboard: React.FC = () => {
     // Consumo por sector
     const sectorMap = new Map<string, number>();
     for (const s of salidasValidas) {
-      const sec = s.sector || 'Otros';
-      sectorMap.set(sec, (sectorMap.get(sec) || 0) + (s.valorSalida || 0));
+      const sec = s.sectorOProveedor || 'Otros';
+      sectorMap.set(sec, (sectorMap.get(sec) || 0) + (s.monto || 0));
     }
     const porSector = Array.from(sectorMap.entries())
       .map(([sector, monto]) => ({ sector, monto }))
@@ -191,6 +162,7 @@ export const Dashboard: React.FC = () => {
       valorStockActual,
       totalSalidasMonto,
       totalComprasMonto,
+      comprasCount: ingresos.length,
       tasaAprobacion,
       criticosCount: criticos.length,
       bajosCount: bajos.length,
@@ -205,10 +177,108 @@ export const Dashboard: React.FC = () => {
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, ingresos, salidas]);
+  }, [stockList, movimientos]);
+
+  const consumoColaboradores = useMemo(() => {
+    const ahora = new Date();
+    const hoyStr = ahora.toISOString().slice(0, 10);
+    const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const esteMesStr = hoyStr.slice(0, 7);
+
+    // Filtrar salidas válidas para el análisis
+    const salidasValidas = movimientos.filter((m) => {
+      if (m.tipo !== 'SALIDA') return false;
+      if (m.estado !== 'AUTORIZADO' && m.estado !== 'AUTORIZADO PARCIAL') return false;
+
+      // Filtro de período
+      const fechaCorta = (m.fechaHora || '').slice(0, 10);
+      if (colabPeriodoFiltro === 'este_mes' && !fechaCorta.startsWith(esteMesStr)) return false;
+      if (colabPeriodoFiltro === '30dias' && fechaCorta < hace30Dias) return false;
+
+      // Filtro de sector
+      const sectorMov = (m.sector || m.sectorOProveedor || '').toLowerCase();
+      if (colabSectorFiltro && !sectorMov.includes(colabSectorFiltro.toLowerCase())) return false;
+
+      return true;
+    });
+
+    const colabMap = new Map<
+      string,
+      {
+        nombre: string;
+        sector: string;
+        montoTotal: number;
+        cantidadTotal: number;
+        retirosCount: number;
+        insumosMap: Map<string, number>;
+      }
+    >();
+
+    for (const s of salidasValidas) {
+      const nombre = (s.solicitante || s.persona.replace(/\s*\(Aut:.*\)$/i, '')).trim();
+      if (!nombre) continue;
+
+      const sector = s.sector || s.sectorOProveedor || 'Taller';
+      const existing = colabMap.get(nombre) || {
+        nombre,
+        sector,
+        montoTotal: 0,
+        cantidadTotal: 0,
+        retirosCount: 0,
+        insumosMap: new Map<string, number>(),
+      };
+
+      existing.montoTotal += s.monto || 0;
+      existing.cantidadTotal += s.cantidad || 0;
+      existing.retirosCount += 1;
+      existing.insumosMap.set(s.insumo, (existing.insumosMap.get(s.insumo) || 0) + (s.cantidad || 0));
+      colabMap.set(nombre, existing);
+    }
+
+    const list = Array.from(colabMap.values()).map((c) => {
+      let topInsumo = '';
+      let topInsumoCant = 0;
+      for (const [ins, cant] of c.insumosMap.entries()) {
+        if (cant > topInsumoCant) {
+          topInsumo = ins;
+          topInsumoCant = cant;
+        }
+      }
+      return {
+        nombre: c.nombre,
+        sector: c.sector,
+        montoTotal: c.montoTotal,
+        cantidadTotal: c.cantidadTotal,
+        retirosCount: c.retirosCount,
+        topInsumo: topInsumo ? `${topInsumo} (${topInsumoCant}u)` : '',
+      };
+    });
+
+    // Ordenamiento por consumo mayor o menor
+    if (colabOrden === 'mas') {
+      list.sort((a, b) => b.montoTotal - a.montoTotal || b.cantidadTotal - a.cantidadTotal);
+    } else {
+      list.sort((a, b) => a.montoTotal - b.montoTotal || a.cantidadTotal - b.cantidadTotal);
+    }
+
+    const maxMonto = list.length > 0 ? Math.max(...list.map((c) => c.montoTotal), 1) : 1;
+    const totalConsumido = list.reduce((a, c) => a + c.montoTotal, 0);
+    const totalCantidadInsumos = list.reduce((a, c) => a + c.cantidadTotal, 0);
+    const promedioConsumo = list.length > 0 ? Math.round(totalConsumido / list.length) : 0;
+
+    return {
+      list,
+      maxMonto,
+      totalConsumido,
+      totalCantidadInsumos,
+      promedioConsumo,
+      colaboradoresActivos: list.length,
+    };
+  }, [movimientos, colabSectorFiltro, colabPeriodoFiltro, colabOrden]);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
+      {loadError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{loadError}</div>}
       {/* Header Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
@@ -238,8 +308,8 @@ export const Dashboard: React.FC = () => {
             onChange={(e) => setProvinciaFiltro(e.target.value)}
             className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none shadow-xs font-medium"
           >
-            <option value="">Todas las bases</option>
-            {PROVINCIAS.map((p) => (
+            {!session.provincia && <option value="">Todas las bases</option>}
+            {(session.provincia ? [session.provincia] : PROVINCIAS).map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
@@ -254,7 +324,7 @@ export const Dashboard: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
-          <button
+          {!session.provincia && <button
             onClick={handleLimpiarPrueba}
             disabled={isCleaning}
             className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 bg-white text-xs font-medium flex items-center gap-1 transition-colors shadow-xs"
@@ -262,7 +332,7 @@ export const Dashboard: React.FC = () => {
           >
             <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${isCleaning ? 'animate-spin' : ''}`} />
             <span className="hidden md:inline">Iniciar Operación Limpia</span>
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -338,7 +408,7 @@ export const Dashboard: React.FC = () => {
             $ {Math.round(metrics.totalComprasMonto).toLocaleString('es-AR')}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {ingresos.length} compras registradas
+            {metrics.comprasCount} compras registradas
           </div>
         </div>
       </div>
@@ -560,12 +630,186 @@ export const Dashboard: React.FC = () => {
                     <span className="font-medium text-slate-900">{item.nombre}</span>
                   </div>
                   <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {item.cantidad} u.
+                    {item.cantidad} {item.unidad || 'u'}
                   </span>
                 </div>
               ))
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Sección Gráfica 3: Consumo por Colaborador (Técnicos y Lavadores) */}
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <Users className="w-4 h-4 text-blue-600" />
+              Consumo por Colaborador (Técnicos y Lavadores)
+            </h3>
+            <p className="text-xs text-slate-500">
+              Ranking de insumos retirados y valorizado económico por operario del taller
+            </p>
+          </div>
+
+          {/* Filtros locales para el análisis */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Toggle Quién usa más vs Quién usa menos */}
+            <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50 text-xs">
+              <button
+                onClick={() => setColabOrden('mas')}
+                className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1 transition-all ${
+                  colabOrden === 'mas'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+                title="Mostrar primero los colaboradores con mayor consumo"
+              >
+                <ArrowUp className="w-3 h-3 text-amber-600" />
+                <span>Mayor uso</span>
+              </button>
+              <button
+                onClick={() => setColabOrden('menos')}
+                className={`px-2.5 py-1 rounded-md font-semibold flex items-center gap-1 transition-all ${
+                  colabOrden === 'menos'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+                title="Mostrar primero los colaboradores con menor consumo"
+              >
+                <ArrowDown className="w-3 h-3 text-blue-600" />
+                <span>Menor uso</span>
+              </button>
+            </div>
+
+            {/* Filtro Sector */}
+            <select
+              value={colabSectorFiltro}
+              onChange={(e) => setColabSectorFiltro(e.target.value)}
+              className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none font-medium shadow-2xs"
+            >
+              <option value="">Todas las áreas</option>
+              {SECTORES.map((sec) => (
+                <option key={sec} value={sec}>
+                  {sec}
+                </option>
+              ))}
+            </select>
+
+            {/* Filtro Período */}
+            <select
+              value={colabPeriodoFiltro}
+              onChange={(e) => setColabPeriodoFiltro(e.target.value)}
+              className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none font-medium shadow-2xs"
+            >
+              <option value="todos">Todo el historial</option>
+              <option value="este_mes">Este mes</option>
+              <option value="30dias">Últimos 30 días</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Resumen de KPIs de colaboradores */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/70 p-3 rounded-lg border border-slate-100 text-xs">
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Operarios con retiros</span>
+            <span className="font-mono font-bold text-slate-800 text-sm">
+              {consumoColaboradores.colaboradoresActivos}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Insumos entregados</span>
+            <span className="font-mono font-bold text-slate-800 text-sm">
+              {consumoColaboradores.totalCantidadInsumos} u
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Monto total retirado</span>
+            <span className="font-mono font-bold text-slate-900 text-sm">
+              $ {Math.round(consumoColaboradores.totalConsumido).toLocaleString('es-AR')}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Consumo promedio / operario</span>
+            <span className="font-mono font-bold text-blue-900 text-sm">
+              $ {consumoColaboradores.promedioConsumo.toLocaleString('es-AR')}
+            </span>
+          </div>
+        </div>
+
+        {/* Lista / Barras de Consumo */}
+        <div className="space-y-3 pt-1">
+          {consumoColaboradores.list.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              No hay retiros autorizados para los filtros de colaborador seleccionados.
+            </div>
+          ) : (
+            consumoColaboradores.list.map((c, idx) => {
+              const pct = Math.min(100, Math.round((c.montoTotal / consumoColaboradores.maxMonto) * 100));
+              const esTaller = c.sector.toLowerCase().includes('taller');
+
+              return (
+                <div
+                  key={c.nombre}
+                  className="p-3 rounded-xl border border-slate-100 hover:border-slate-200 bg-white hover:bg-slate-50/50 transition-all space-y-2 shadow-2xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] font-mono shrink-0 ${
+                        colabOrden === 'mas'
+                          ? idx === 0
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : idx === 1
+                            ? 'bg-slate-200 text-slate-800'
+                            : 'bg-slate-100 text-slate-600'
+                          : 'bg-blue-50 text-blue-800'
+                      }`}>
+                        {idx + 1}
+                      </span>
+                      <span className="font-bold text-slate-900 text-xs">{c.nombre}</span>
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                          esTaller
+                            ? 'bg-blue-50 text-blue-700 border border-blue-100'
+                            : 'bg-teal-50 text-teal-700 border border-teal-100'
+                        }`}
+                      >
+                        {c.sector}
+                      </span>
+                      {c.topInsumo && (
+                        <span className="hidden md:inline text-[11px] text-slate-400">
+                          · Más pedido: <span className="font-medium text-slate-600">{c.topInsumo}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3 font-mono text-xs justify-between sm:justify-end">
+                      <span className="text-slate-500 text-[11px]">
+                        {c.retirosCount} pedido{c.retirosCount === 1 ? '' : 's'} · {c.cantidadTotal} u
+                      </span>
+                      <span className="font-bold text-slate-900 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
+                        $ {Math.round(c.montoTotal).toLocaleString('es-AR')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Barra de progreso */}
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${pct}%` }}
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        colabOrden === 'mas'
+                          ? idx === 0
+                            ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+                            : 'bg-slate-800'
+                          : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                      }`}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 

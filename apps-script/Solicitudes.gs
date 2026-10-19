@@ -248,6 +248,9 @@ function autorizarSolicitud(idSolicitud, cantidadAutorizada, token) {
 
     var idInsumo = String(solicitudData[4]).trim();
     var provincia = String(solicitudData[2]).trim();
+    if (!sesionPuedeOperarProvincia(session, provincia)) {
+      return crearRespuesta(false, null, 'Este PIN no está habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+    }
 
     // Comprobación de concurrencia: consultar stock REAL en este instante
     var stockList = obtenerStock(provincia);
@@ -339,6 +342,10 @@ function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
 
     if (targetRowIndex === -1) {
       return crearRespuesta(false, null, 'La solicitud no fue encontrada.', 'NO_ENCONTRADA');
+    }
+    var provincia = String(data[targetRowIndex - 1][2]).trim();
+    if (!sesionPuedeOperarProvincia(session, provincia)) {
+      return crearRespuesta(false, null, 'Este PIN no está habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
     }
 
     var fechaHora = getFechaHoraActual();

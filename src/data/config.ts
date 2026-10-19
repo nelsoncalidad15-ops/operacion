@@ -113,8 +113,4 @@ export const INITIAL_INGRESOS: Ingreso[] = [];
 
 export const INITIAL_SALIDAS: Salida[] = [];
 
-export const DEMO_RESPONSABLES: { [pin: string]: string } = {
-  '1423': 'Marcelo Pereyra',
-  '7852': 'Pablo Guantay',
-  '9021': 'Nelson Albarracín',
-};
+export const DEMO_RESPONSABLES: { [pin: string]: string } = {};

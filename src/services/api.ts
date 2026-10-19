@@ -286,10 +286,8 @@ class ApiService {
   // ==========================================
   public async getColaboradores(provincia?: string): Promise<ApiResponse<Colaborador[]>> {
     if (this.isLiveConnected()) {
-      const res = await this.callAppsScript<Colaborador[]>('getColaboradores', { provincia });
-      if (res.ok && res.data && res.data.length > 0) {
-        return res;
-      }
+      // Sheets es la fuente de verdad, incluso cuando la base aún no tiene personas.
+      return this.callAppsScript<Colaborador[]>('getColaboradores', { provincia });
     }
 
     try {
@@ -934,6 +932,8 @@ class ApiService {
         sectorOProveedor: ing.proveedor ? `${ing.proveedor} (${ing.tipoIngreso})` : ing.tipoIngreso,
         estado: 'REGISTRADO',
         monto: ing.total,
+        solicitante: ing.responsable,
+        sector: ing.tipoIngreso,
       });
     }
 
@@ -954,6 +954,8 @@ class ApiService {
         sectorOProveedor: sal.sector,
         estado: sal.estado,
         monto: sal.valorSalida || 0,
+        solicitante: sal.solicitante,
+        sector: sal.sector,
       });
     }
 
@@ -999,10 +1001,10 @@ class ApiService {
     };
   }
 
-  public async limpiarMovimientosDePrueba(): Promise<ApiResponse<{ message: string }>> {
+  public async limpiarMovimientosDePrueba(token: string): Promise<ApiResponse<{ message: string }>> {
     // Si está conectado a Apps Script, ejecutar la limpieza remota en la planilla Google Sheets
     if (this.isLiveConnected()) {
-      return await this.callAppsScript<{ message: string }>('limpiarMovimientosDePrueba');
+      return await this.callAppsScript<{ message: string }>('limpiarMovimientosDePrueba', { token });
     }
 
     // Limpieza local
