@@ -22,7 +22,12 @@ import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 import { ModalRecepcionPedido } from './ModalRecepcionPedido';
 
-export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
+interface DashboardProps {
+  session: AuthSession;
+  onNavigateToIngreso?: (data: { insumoId: string; cantidad: number; provincia: string }) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngreso }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
   const [pedidosEnCamino, setPedidosEnCamino] = useState<PedidoEnCamino[]>([]);
@@ -621,12 +626,22 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
                                 En camino (+{item.pedidoEnCamino.cantidadPedida} {item.unidad})
                               </span>
                               <button
-                                onClick={() => setRecepcionModalItem(item)}
+                                onClick={() => {
+                                  if (onNavigateToIngreso) {
+                                    onNavigateToIngreso({
+                                      insumoId: item.id,
+                                      cantidad: item.pedidoEnCamino.cantidadPedida || item.deficit || 1,
+                                      provincia: item.provincia,
+                                    });
+                                  } else {
+                                    setRecepcionModalItem(item);
+                                  }
+                                }}
                                 className="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-semibold flex items-center gap-1 transition-colors"
-                                title="Ingresar mercadería que llegó al pañol"
+                                title="Ir a Registrar Ingreso con este insumo listo para cargar"
                               >
                                 <PackageCheck className="w-3 h-3" />
-                                Recibir
+                                Cargar Ingreso
                               </button>
                               <button
                                 onClick={() => handleCancelarPedido(item.id, item.provincia)}

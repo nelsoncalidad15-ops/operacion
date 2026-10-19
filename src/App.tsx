@@ -18,6 +18,8 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
 
+  const [prefillIngreso, setPrefillIngreso] = useState<{ insumoId: string; cantidad: number; provincia: string } | null>(null);
+
   const updatePendingCount = useCallback(async () => {
     try {
       const res = await api.getSolicitudesPendientes(api.getSession()?.provincia || undefined);
@@ -68,7 +70,15 @@ export default function App() {
           />
         )}
 
-        {session && activeTab === 'dashboard' && <Dashboard session={session} />}
+        {session && activeTab === 'dashboard' && (
+          <Dashboard
+            session={session}
+            onNavigateToIngreso={(data) => {
+              setPrefillIngreso(data);
+              setActiveTab('ingresos');
+            }}
+          />
+        )}
 
         {session && activeTab === 'autorizaciones' && (
           <Autorizaciones
@@ -86,7 +96,12 @@ export default function App() {
           <Ingresos
             session={session}
             onSessionChange={(s) => setSession(s)}
-            onSuccessIngreso={updatePendingCount}
+            onSuccessIngreso={() => {
+              setPrefillIngreso(null);
+              updatePendingCount();
+            }}
+            prefillData={prefillIngreso}
+            onClearPrefill={() => setPrefillIngreso(null)}
           />
         )}
 

@@ -194,3 +194,4 @@ export const ModalRecepcionPedido: React.FC<ModalRecepcionPedidoProps> = ({
     </div>
   );
 };
+

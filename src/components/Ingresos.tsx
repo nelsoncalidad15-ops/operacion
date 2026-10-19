@@ -8,20 +8,24 @@ interface IngresosProps {
   session: AuthSession | null;
   onSessionChange: (session: AuthSession | null) => void;
   onSuccessIngreso: () => void;
+  prefillData?: { insumoId: string; cantidad: number; provincia: string } | null;
+  onClearPrefill?: () => void;
 }
 
 export const Ingresos: React.FC<IngresosProps> = ({
   session,
   onSessionChange,
   onSuccessIngreso,
+  prefillData,
+  onClearPrefill,
 }) => {
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [isValidatingPin, setIsValidatingPin] = useState<boolean>(false);
 
-  const [provincia, setProvincia] = useState<string>(session?.provincia || 'Jujuy');
-  const [selectedInsumoId, setSelectedInsumoId] = useState<string>('');
-  const [cantidad, setCantidad] = useState<number>(10);
+  const [provincia, setProvincia] = useState<string>(prefillData?.provincia || session?.provincia || 'Jujuy');
+  const [selectedInsumoId, setSelectedInsumoId] = useState<string>(prefillData?.insumoId || '');
+  const [cantidad, setCantidad] = useState<number>(prefillData?.cantidad || 10);
   const [precioUnitario, setPrecioUnitario] = useState<number>(0);
   const [proveedor, setProveedor] = useState<string>('');
   const [tipoIngreso, setTipoIngreso] = useState<TipoIngreso>('Compra');
@@ -35,11 +39,19 @@ export const Ingresos: React.FC<IngresosProps> = ({
   const [proveedoresSugeridos, setProveedoresSugeridos] = useState<string[]>([]);
 
   useEffect(() => {
-    if (session?.provincia) {
+    if (prefillData) {
+      if (prefillData.provincia) setProvincia(prefillData.provincia);
+      if (prefillData.insumoId) setSelectedInsumoId(prefillData.insumoId);
+      if (prefillData.cantidad > 0) setCantidad(prefillData.cantidad);
+    }
+  }, [prefillData]);
+
+  useEffect(() => {
+    if (session?.provincia && !prefillData) {
       setProvincia(session.provincia);
       setSelectedInsumoId('');
     }
-  }, [session?.provincia]);
+  }, [session?.provincia, prefillData]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -121,6 +133,7 @@ export const Ingresos: React.FC<IngresosProps> = ({
 
       if (res.ok && res.data) {
         setSuccessData(res.data);
+        onClearPrefill?.();
         onSuccessIngreso();
       } else {
         setErrorMessage(res.message || 'Error al guardar.');
@@ -140,6 +153,7 @@ export const Ingresos: React.FC<IngresosProps> = ({
     setProveedor('');
     setComprobante('');
     setErrorMessage(null);
+    onClearPrefill?.();
   };
 
   if (!session) {
