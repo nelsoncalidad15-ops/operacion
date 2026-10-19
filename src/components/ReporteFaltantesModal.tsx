@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Printer, AlertTriangle, X, CheckCircle2, Download, Truck } from 'lucide-react';
-import { StockItem } from '../types';
+import { StockItem, AuthSession } from '../types';
 import { api } from '../services/api';
 
 interface ReporteFaltantesModalProps {
@@ -8,6 +8,8 @@ interface ReporteFaltantesModalProps {
   onClose: () => void;
   stockList: StockItem[];
   provinciaFiltro: string;
+  session?: AuthSession;
+  onUpdatePedidos?: () => void;
 }
 
 export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
@@ -15,9 +17,12 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
   onClose,
   stockList,
   provinciaFiltro,
+  session,
+  onUpdatePedidos,
 }) => {
   if (!isOpen) return null;
 
+  const [pedidosVersion, setPedidosVersion] = useState(0);
   const pedidosEnCamino = api.getPedidosEnCamino(provinciaFiltro || undefined);
   const pedidosMap = new Map(pedidosEnCamino.map((p) => [`${p.idInsumo}_${p.provincia.toLowerCase()}`, p]));
 
@@ -41,6 +46,58 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
   const totalCriticos = faltantes.filter((i) => i.estado === 'CRITICO').length;
   const totalBajos = faltantes.filter((i) => i.estado === 'CERCA_MINIMO').length;
   const totalEnCamino = faltantes.filter((i) => pedidosMap.has(`${i.idInsumo}_${i.provincia.toLowerCase()}`)).length;
+  const faltantesPendientesCount = faltantes.length - totalEnCamino;
+
+  const handleMarcarUno = (item: StockItem) => {
+    const deficit = item.cantidadReponer > 0 ? item.cantidadReponer : Math.max(0, item.stockObjetivo - item.stockActual);
+    api.marcarPedidoEnCamino({
+      idInsumo: item.idInsumo,
+      insumo: item.insumo,
+      provincia: item.provincia,
+      unidad: item.unidad,
+      cantidadPedida: deficit,
+      responsable: session?.responsableNombre || 'Pañol',
+    });
+    setPedidosVersion((v) => v + 1);
+    onUpdatePedidos?.();
+  };
+
+  const handleCancelarUno = (idInsumo: string, provincia: string) => {
+    api.quitarPedidoEnCamino(idInsumo, provincia);
+    setPedidosVersion((v) => v + 1);
+    onUpdatePedidos?.();
+  };
+
+  const handleMarcarTodos = () => {
+    const pendientes = faltantes.filter((item) => !pedidosMap.has(`${item.idInsumo}_${item.provincia.toLowerCase()}`));
+    if (pendientes.length === 0) return;
+    if (!window.confirm(`¿Confirmás marcar los ${pendientes.length} insumos de este reporte como pedidos al proveedor y en camino hacia pañol?`)) {
+      return;
+    }
+    for (const item of pendientes) {
+      const deficit = item.cantidadReponer > 0 ? item.cantidadReponer : Math.max(0, item.stockObjetivo - item.stockActual);
+      api.marcarPedidoEnCamino({
+        idInsumo: item.idInsumo,
+        insumo: item.insumo,
+        provincia: item.provincia,
+        unidad: item.unidad,
+        cantidadPedida: deficit,
+        responsable: session?.responsableNombre || 'Pañol',
+      });
+    }
+    setPedidosVersion((v) => v + 1);
+    onUpdatePedidos?.();
+  };
+
+  const handleDesmarcarTodos = () => {
+    if (totalEnCamino === 0) return;
+    if (!window.confirm(`¿Deseas desmarcar los ${totalEnCamino} pedidos en camino de este reporte?`)) return;
+    for (const item of faltantes) {
+      api.quitarPedidoEnCamino(item.idInsumo, item.provincia);
+    }
+    setPedidosVersion((v) => v + 1);
+    onUpdatePedidos?.();
+  };
 
   const handlePrint = () => {
     window.print();
@@ -170,7 +227,26 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {faltantesPendientesCount > 0 ? (
+              <button
+                onClick={handleMarcarTodos}
+                className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                title="Marcar todos los insumos de esta lista como pedidos"
+              >
+                <Truck className="w-3.5 h-3.5 text-white" />
+                <span>Pedir todos ({faltantesPendientesCount})</span>
+              </button>
+            ) : totalEnCamino > 0 ? (
+              <button
+                onClick={handleDesmarcarTodos}
+                className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-500 hover:text-red-600 hover:bg-slate-50 transition-colors"
+                title="Desmarcar todos los pedidos en camino de esta lista"
+              >
+                Desmarcar todos
+              </button>
+            ) : null}
+
             <button
               onClick={handleExportCSV}
               className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 text-xs font-semibold flex items-center gap-1.5 transition-colors"
@@ -342,18 +418,39 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
                         </td>
                         <td className="py-1.5 px-2.5 text-center font-sans">
                           {pedido ? (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
-                              <Truck className="w-2.5 h-2.5 text-sky-600 print:hidden" />
-                              EN CAMINO (+{pedido.cantidadPedida})
-                            </span>
-                          ) : item.estado === 'CRITICO' ? (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">
-                              CRÍTICO
-                            </span>
+                            <div className="inline-flex items-center gap-1 justify-center">
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-sky-100 text-sky-800 border border-sky-200">
+                                <Truck className="w-2.5 h-2.5 text-sky-600 print:hidden" />
+                                EN CAMINO (+{pedido.cantidadPedida})
+                              </span>
+                              <button
+                                onClick={() => handleCancelarUno(item.idInsumo, item.provincia)}
+                                className="print:hidden p-0.5 text-slate-400 hover:text-red-600 rounded text-[9px]"
+                                title="Desmarcar pedido en camino"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           ) : (
-                            <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-100 text-amber-800">
-                              BAJO
-                            </span>
+                            <div className="inline-flex items-center gap-1.5 justify-center">
+                              {item.estado === 'CRITICO' ? (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold bg-red-100 text-red-700">
+                                  CRÍTICO
+                                </span>
+                              ) : (
+                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-medium bg-amber-100 text-amber-800">
+                                  BAJO
+                                </span>
+                              )}
+                              <button
+                                onClick={() => handleMarcarUno(item)}
+                                className="print:hidden px-1.5 py-0.5 rounded border border-slate-200 hover:border-sky-300 hover:bg-sky-50 text-slate-700 hover:text-sky-800 text-[9px] font-bold inline-flex items-center gap-0.5 transition-colors shadow-2xs"
+                                title="Marcar como pedido en camino"
+                              >
+                                <Truck className="w-2.5 h-2.5 text-sky-600" />
+                                Pedir
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>

@@ -37,6 +37,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [provinciaFiltro, setProvinciaFiltro] = useState<string>(session.provincia || '');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
+  const [mostrarTodosFaltantes, setMostrarTodosFaltantes] = useState<boolean>(false);
 
   // Filtros para el análisis de consumo por colaborador
   const [colabSectorFiltro, setColabSectorFiltro] = useState<string>('');
@@ -77,6 +78,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       cantidadPedida: item.deficit,
       responsable: session.responsableNombre,
     });
+    setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
+  };
+
+  const handleMarcarTodosPedidos = (items: Array<{ id: string; insumo: string; provincia: string; unidad: string; deficit: number; pedidoEnCamino?: any }>) => {
+    const pendientes = items.filter((item) => !item.pedidoEnCamino);
+    if (pendientes.length === 0) return;
+    if (!window.confirm(`¿Confirmás marcar los ${pendientes.length} insumos faltantes como pedidos al proveedor y en camino hacia pañol?`)) {
+      return;
+    }
+    for (const item of pendientes) {
+      api.marcarPedidoEnCamino({
+        idInsumo: item.id,
+        insumo: item.insumo,
+        provincia: item.provincia,
+        unidad: item.unidad,
+        cantidadPedida: item.deficit,
+        responsable: session.responsableNombre,
+      });
+    }
+    setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
+  };
+
+  const handleDesmarcarTodosPedidos = (items: Array<{ id: string; provincia: string; pedidoEnCamino?: any }>) => {
+    const enCaminoList = items.filter((item) => item.pedidoEnCamino);
+    if (enCaminoList.length === 0) return;
+    if (!window.confirm(`¿Deseas desmarcar los ${enCaminoList.length} pedidos en camino y volver a mostrarlos como faltantes pendientes?`)) {
+      return;
+    }
+    for (const item of enCaminoList) {
+      api.quitarPedidoEnCamino(item.id, item.provincia);
+    }
     setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
   };
 
@@ -133,8 +165,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       0
     );
 
-    // Top Insumos con Mayor Necesidad de Reposición (Déficit urgente)
-    const topFaltantes = [...stockList]
+    // Insumos con Mayor Necesidad de Reposición (Déficit urgente)
+    const todosFaltantes = [...stockList]
       .filter((s) => s.cantidadReponer > 0 || s.estado === 'CRITICO' || s.estado === 'CERCA_MINIMO')
       .map((s) => {
         const deficit = s.cantidadReponer > 0 ? s.cantidadReponer : Math.max(0, s.stockObjetivo - s.stockActual);
@@ -160,8 +192,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
         if (!a.pedidoEnCamino && b.pedidoEnCamino) return -1;
         if (a.pedidoEnCamino && !b.pedidoEnCamino) return 1;
         return b.deficit - a.deficit;
-      })
-      .slice(0, 6);
+      });
+
+    const faltantesPendientesCount = todosFaltantes.filter((f) => !f.pedidoEnCamino).length;
+    const topFaltantes = mostrarTodosFaltantes ? todosFaltantes : todosFaltantes.slice(0, 5);
 
     const criticosPendientes = criticos.filter(
       (c) => !pedidosEnCamino.some((p) => p.idInsumo === c.idInsumo && p.provincia.toLowerCase() === c.provincia.toLowerCase())
@@ -219,13 +253,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       porcBajo,
       porcSuficiente,
       costoReposicionTotal,
+      todosFaltantes,
+      faltantesPendientesCount,
       topFaltantes,
       topInsumos,
       porSector,
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, movimientos, pedidosEnCamino]);
+  }, [stockList, movimientos, pedidosEnCamino, mostrarTodosFaltantes]);
 
   const consumoColaboradores = useMemo(() => {
     const ahora = new Date();
@@ -581,20 +617,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
         {/* Gráfico de Barras: Lo que falta reponer con mayor urgencia */}
         <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                Mayor Necesidad de Reposición (Qué falta)
-              </h3>
-              <button
-                onClick={() => setShowReporteModal(true)}
-                className="text-xs text-red-600 hover:text-red-800 font-semibold"
-              >
-                Ver todos &rarr;
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-500" />
+                  Mayor Necesidad de Reposición (Qué falta)
+                  <span className="text-xs font-normal text-slate-500 font-mono">
+                    ({metrics.todosFaltantes.length})
+                  </span>
+                </h3>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {metrics.faltantesPendientesCount > 0 ? (
+                  <button
+                    onClick={() => handleMarcarTodosPedidos(metrics.todosFaltantes)}
+                    className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
+                    title="Marcar todos los insumos faltantes como pedidos al proveedor"
+                  >
+                    <Truck className="w-3.5 h-3.5 text-white" />
+                    <span>Pedir todos ({metrics.faltantesPendientesCount})</span>
+                  </button>
+                ) : metrics.todosFaltantes.length > 0 ? (
+                  <button
+                    onClick={() => handleDesmarcarTodosPedidos(metrics.todosFaltantes)}
+                    className="px-2 py-0.5 rounded text-[11px] text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Desmarcar pedidos en camino"
+                  >
+                    Desmarcar todos
+                  </button>
+                ) : null}
+
+                <button
+                  onClick={() => setShowReporteModal(true)}
+                  className="text-xs text-red-600 hover:text-red-800 font-semibold border border-red-200 bg-red-50/50 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
+                >
+                  Ver reporte &rarr;
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3">
+            <div className={`space-y-3 ${mostrarTodosFaltantes && metrics.todosFaltantes.length > 6 ? 'max-h-[460px] overflow-y-auto pr-1' : ''}`}>
               {metrics.topFaltantes.length === 0 ? (
                 <div className="text-center py-8 text-xs text-emerald-600 font-medium">
                   <CheckCircle2 className="w-6 h-6 mx-auto mb-1 text-emerald-500" />
@@ -690,11 +753,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 mt-4 flex items-center justify-between text-xs text-slate-600">
-            <span>Costo para nivelar top 5:</span>
-            <span className="font-mono font-bold text-slate-900">
-              $ {Math.round(metrics.topFaltantes.reduce((a, c) => a + c.costoReponer, 0)).toLocaleString('es-AR')}
-            </span>
+          <div className="pt-3 border-t border-slate-100 mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-600">
+            {metrics.todosFaltantes.length > 5 ? (
+              <button
+                onClick={() => setMostrarTodosFaltantes(!mostrarTodosFaltantes)}
+                className="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 text-left"
+              >
+                {mostrarTodosFaltantes
+                  ? '▲ Mostrar solo los 5 más urgentes'
+                  : `▼ Ver los ${metrics.todosFaltantes.length} insumos faltantes completos`}
+              </button>
+            ) : (
+              <span>Mostrando todos los faltantes detectados ({metrics.todosFaltantes.length})</span>
+            )}
+
+            <div className="flex items-center gap-1.5 justify-between sm:justify-end">
+              <span>{mostrarTodosFaltantes ? 'Costo total reposición:' : 'Costo para nivelar top 5:'}</span>
+              <span className="font-mono font-bold text-slate-900">
+                $ {Math.round(metrics.topFaltantes.reduce((a, c) => a + c.costoReponer, 0)).toLocaleString('es-AR')}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -957,6 +1035,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
         onClose={() => setShowReporteModal(false)}
         stockList={stockList}
         provinciaFiltro={provinciaFiltro}
+        session={session}
+        onUpdatePedidos={loadData}
       />
 
       {/* Modal de Recepción de Pedidos En Camino */}
