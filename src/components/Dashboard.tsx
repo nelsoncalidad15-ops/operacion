@@ -10,18 +10,18 @@ import {
   ArrowUpRight,
   Sparkles,
 } from 'lucide-react';
-import { StockItem, MovimientoHistorial } from '../types';
+import { StockItem, MovimientoHistorial, AuthSession } from '../types';
 import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
-export const Dashboard: React.FC = () => {
+export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
-  const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
+  const [provinciaFiltro, setProvinciaFiltro] = useState<string>(session.provincia || '');
   const [showReporteModal, setShowReporteModal] = useState<boolean>(false);
 
   const loadData = async () => {
@@ -29,7 +29,7 @@ export const Dashboard: React.FC = () => {
     try {
       setLoadError(null);
       const [stockRes, movimientosRes] = await Promise.all([
-        api.getStock(provinciaFiltro || undefined),
+        api.getStock(session.provincia || provinciaFiltro || undefined),
         api.getUltimosMovimientos(100000),
       ]);
       if (!stockRes.ok || !movimientosRes.ok) {
@@ -37,7 +37,7 @@ export const Dashboard: React.FC = () => {
       }
       setStockList(stockRes.data || []);
       setMovimientos((movimientosRes.data || []).filter((m) =>
-        !provinciaFiltro || m.provincia.toLowerCase() === provinciaFiltro.toLowerCase()
+        !(session.provincia || provinciaFiltro) || m.provincia.toLowerCase() === (session.provincia || provinciaFiltro).toLowerCase()
       ));
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
@@ -57,7 +57,7 @@ export const Dashboard: React.FC = () => {
     }
     setIsCleaning(true);
     try {
-      await api.limpiarMovimientosDePrueba();
+      await api.limpiarMovimientosDePrueba(session.token);
       await loadData();
     } catch (e) {
       console.error('Error limpiando datos de prueba:', e);
@@ -202,8 +202,8 @@ export const Dashboard: React.FC = () => {
             onChange={(e) => setProvinciaFiltro(e.target.value)}
             className="text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none shadow-xs font-medium"
           >
-            <option value="">Todas las bases</option>
-            {PROVINCIAS.map((p) => (
+            {!session.provincia && <option value="">Todas las bases</option>}
+            {(session.provincia ? [session.provincia] : PROVINCIAS).map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
@@ -218,7 +218,7 @@ export const Dashboard: React.FC = () => {
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
 
-          <button
+          {!session.provincia && <button
             onClick={handleLimpiarPrueba}
             disabled={isCleaning}
             className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-slate-900 bg-white text-xs font-medium flex items-center gap-1 transition-colors shadow-xs"
@@ -226,7 +226,7 @@ export const Dashboard: React.FC = () => {
           >
             <Sparkles className={`w-3.5 h-3.5 text-amber-500 ${isCleaning ? 'animate-spin' : ''}`} />
             <span className="hidden md:inline">Iniciar Operación Limpia</span>
-          </button>
+          </button>}
         </div>
       </div>
 
