@@ -8,6 +8,9 @@ function guardarInsumo(payload, token) {
   var categoria = String(payload.categoria || '').trim();
   var unidad = String(payload.unidad || '').trim();
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no está habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var stockMinimo = parseNumeroSeguro(payload.stockMinimo);
   var stockObjetivo = parseNumeroSeguro(payload.stockObjetivo);
   var activo = String(payload.activo || 'Sí').trim();
@@ -23,7 +26,12 @@ function guardarInsumo(payload, token) {
   var data = hoja.getDataRange().getValues();
   var fila = -1;
   for (var i = 1; i < data.length; i++) {
-    if (id && String(data[i][0]).trim() === id) fila = i + 1;
+    if (id && String(data[i][0]).trim() === id) {
+      if (!sesionPuedeOperarProvincia(session, String(data[i][4]).trim())) {
+        return crearRespuesta(false, null, 'No podés editar un insumo de otra base.', 'BASE_NO_AUTORIZADA');
+      }
+      fila = i + 1;
+    }
     if (!id && String(data[i][2]).trim().toLowerCase() === nombre.toLowerCase() &&
         String(data[i][4]).trim().toLowerCase() === provincia.toLowerCase()) {
       return crearRespuesta(false, null, 'Ya existe un insumo con ese nombre en la provincia.', 'DUPLICADO');
@@ -49,6 +57,9 @@ function guardarColaborador(payload, token) {
   var nombreOriginal = String(payload.nombreOriginal || '').trim();
   var sector = String(payload.sector || '').trim();
   var provincia = String(payload.provincia || '').trim();
+  if (!sesionPuedeOperarProvincia(session, provincia)) {
+    return crearRespuesta(false, null, 'Este PIN no está habilitado para ' + provincia + '.', 'BASE_NO_AUTORIZADA');
+  }
   var activo = String(payload.activo || 'Sí').trim();
   if (!nombre || CONFIG.SECTORES.indexOf(sector) === -1 || !provincia) {
     return crearRespuesta(false, null, 'Completá nombre, sector y provincia.', 'CAMPOS_REQUERIDOS');
@@ -67,3 +78,4 @@ function guardarColaborador(payload, token) {
   else hoja.appendRow(valores[0]);
   return crearRespuesta(true, { nombre: nombre, sector: sector, provincia: provincia }, fila > 0 ? 'Colaborador actualizado.' : 'Colaborador creado.');
 }
+
