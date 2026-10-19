@@ -239,7 +239,7 @@ export const Ingresos: React.FC<IngresosProps> = ({
                 <button
                   key={p}
                   type="button"
-                  onClick={() => setProvincia(p)}
+                  onClick={() => { setProvincia(p); setSelectedInsumoId(''); setInsumosList([]); }}
                   className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
                     provincia === p ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
                   }`}
@@ -379,3 +379,4 @@ export const Ingresos: React.FC<IngresosProps> = ({
     </div>
   );
 };
+
