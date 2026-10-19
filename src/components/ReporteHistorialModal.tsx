@@ -11,10 +11,47 @@ interface ReporteHistorialModalProps {
     sector: string;
     colaborador: string;
     tipo: string;
-    periodo: string;
+    mes: string;
+    mesLabel?: string;
+    fecha?: string;
     busqueda: string;
   };
 }
+
+export const formatFechaHora = (fechaHoraStr: string) => {
+  if (!fechaHoraStr) return { mes: '-', fecha: '-', hora: '-' };
+  const clean = fechaHoraStr.replace('T', ' ');
+  const parts = clean.split(' ');
+  const datePart = parts[0] || '';
+  const timePart = parts[1] || '';
+
+  const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) {
+    return { mes: '-', fecha: fechaHoraStr, hora: '' };
+  }
+
+  const anio = match[1];
+  const mesNum = parseInt(match[2], 10);
+  const dia = match[3];
+
+  const mesesNombres = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+  const mesNombre = mesesNombres[mesNum - 1] || match[2];
+
+  const fechaFormateada = `${dia}/${match[2]}/${anio}`;
+  const horaFormateada = timePart ? timePart.slice(0, 5) : '';
+
+  return {
+    mes: `${mesNombre} ${anio}`,
+    mesCorto: `${mesNombre.slice(0, 3)} ${anio}`,
+    fecha: fechaFormateada,
+    hora: horaFormateada ? `${horaFormateada} hs` : '',
+    rawMes: `${anio}-${match[2]}`,
+    rawFecha: `${anio}-${match[2]}-${dia}`,
+  };
+};
 
 export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
   isOpen,
@@ -25,7 +62,6 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
   if (!isOpen) return null;
 
   const totalMonto = movimientos.reduce((acc, m) => acc + (m.monto || 0), 0);
-  const totalCantidad = movimientos.reduce((acc, m) => acc + (m.cantidad || 0), 0);
   const salidasCount = movimientos.filter((m) => m.tipo === 'SALIDA').length;
   const ingresosCount = movimientos.filter((m) => m.tipo === 'INGRESO').length;
 
@@ -35,7 +71,9 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
 
   const handleExportCSV = () => {
     const headers = [
-      'Fecha/Hora',
+      'Mes',
+      'Fecha',
+      'Hora',
       'Tipo',
       'Insumo',
       'Cantidad',
@@ -47,29 +85,34 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
       'Monto ($)',
     ];
 
-    const rows = movimientos.map((m) => [
-      `"${m.fechaHora}"`,
-      `"${m.tipo}"`,
-      `"${m.insumo.replace(/"/g, '""')}"`,
-      m.cantidad,
-      `"${m.unidad}"`,
-      `"${(m.solicitante || m.persona).replace(/"/g, '""')}"`,
-      `"${(m.sector || m.sectorOProveedor).replace(/"/g, '""')}"`,
-      `"${m.provincia}"`,
-      `"${m.estado}"`,
-      Math.round(m.monto || 0),
-    ]);
+    const rows = movimientos.map((m) => {
+      const fh = formatFechaHora(m.fechaHora);
+      return [
+        `"${fh.mes}"`,
+        `"${fh.fecha}"`,
+        `"${fh.hora}"`,
+        `"${m.tipo}"`,
+        `"${m.insumo.replace(/"/g, '""')}"`,
+        m.cantidad,
+        `"${m.unidad}"`,
+        `"${(m.solicitante || m.persona).replace(/"/g, '""')}"`,
+        `"${(m.sector || m.sectorOProveedor).replace(/"/g, '""')}"`,
+        `"${m.provincia}"`,
+        `"${m.estado}"`,
+        Math.round(m.monto || 0),
+      ];
+    });
 
-    // Resumen y metadatos
     const metadata = [
       ['REPORTE DE MOVIMIENTOS E HISTORIAL - AUTOSOL'],
       [`Fecha de Emisión: ${new Date().toLocaleString('es-AR')}`],
+      [`Filtro Base: ${filtros.provincia || 'Todas'}`],
       [`Filtro Área: ${filtros.sector || 'Todas'}`],
       [`Filtro Colaborador: ${filtros.colaborador || 'Todos'}`],
+      [`Filtro Mes: ${filtros.mesLabel || filtros.mes || 'Todos los meses'}`],
+      [`Filtro Fecha puntual: ${filtros.fecha || 'Todas'}`],
       [`Filtro Tipo: ${filtros.tipo || 'Todos'}`],
-      [`Filtro Período: ${filtros.periodo || 'Todo'}`],
       [`Registros: ${movimientos.length}`],
-      [`Total Cantidad: ${totalCantidad}`],
       [`Total Monto: $ ${Math.round(totalMonto)}`],
       [],
     ];
@@ -80,16 +123,17 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
         ...metadata.map((r) => r.join(';')),
         headers.join(';'),
         ...rows.map((r) => r.join(';')),
-        ['TOTALES', '', '', totalCantidad, '', '', '', '', '', Math.round(totalMonto)].join(';'),
+        ['TOTALES', '', '', '', '', '', '', '', '', '', '', Math.round(totalMonto)].join(';'),
       ].join('\n');
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     const dateStr = new Date().toISOString().slice(0, 10);
+    const mesPart = filtros.mes ? `_${filtros.mes}` : '';
     const sectorPart = filtros.sector ? `_${filtros.sector}` : '';
     const colabPart = filtros.colaborador ? `_${filtros.colaborador.replace(/\s+/g, '_')}` : '';
-    link.setAttribute('download', `Reporte_Movimientos_Autosol${sectorPart}${colabPart}_${dateStr}.csv`);
+    link.setAttribute('download', `Reporte_Movimientos_Autosol${mesPart}${sectorPart}${colabPart}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -105,7 +149,6 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      {/* Estilos para impresión en papel / PDF */}
       <style>{`
         @media print {
           @page {
@@ -165,7 +208,7 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
                 Reporte de Movimientos de Insumos
               </h2>
               <p className="text-xs text-slate-500">
-                Vista filtrada por colaborador, área y período lista para emitir o archivar
+                Organizado por mes, fecha y hora · Detallado por colaborador y área
               </p>
             </div>
           </div>
@@ -218,7 +261,7 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
             </div>
 
             <div className="text-right text-xs">
-              <span className="font-semibold text-slate-700">Base / Sucursal:</span>{' '}
+              <span className="font-semibold text-slate-700">Base:</span>{' '}
               <span className="font-bold text-slate-900">
                 {filtros.provincia || 'Todas las bases'}
               </span>
@@ -230,6 +273,12 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
 
           {/* Tarjetas de Resumen y Filtros Activos */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Mes / Período</span>
+              <span className="font-bold text-slate-800">
+                {filtros.mesLabel || filtros.mes || (filtros.fecha ? `Fecha: ${filtros.fecha}` : 'Todos los meses')}
+              </span>
+            </div>
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Área / Sector</span>
               <span className="font-bold text-slate-800">
@@ -243,13 +292,7 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
               </span>
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Movimientos</span>
-              <span className="font-mono font-bold text-slate-800">
-                {salidasCount} salidas {ingresosCount > 0 ? `· ${ingresosCount} ingresos` : ''}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Costo Total ($)</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block">Monto Total ($)</span>
               <span className="font-mono font-bold text-slate-950 text-sm">
                 $ {Math.round(totalMonto).toLocaleString('es-AR')}
               </span>
@@ -266,7 +309,8 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 text-slate-700 text-[11px] font-semibold border-b border-slate-200">
                   <tr>
-                    <th className="py-2 px-3">Fecha</th>
+                    <th className="py-2 px-3">Mes</th>
+                    <th className="py-2 px-3">Fecha y Hora</th>
                     <th className="py-2 px-3">Tipo</th>
                     <th className="py-2 px-3">Insumo</th>
                     <th className="py-2 px-3 text-right">Cantidad</th>
@@ -276,52 +320,56 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-mono text-[11px]">
-                  {movimientos.map((m, idx) => (
-                    <tr key={`${m.id}_${idx}`} className="hover:bg-slate-50/70">
-                      <td className="py-2 px-3 text-slate-500 whitespace-nowrap">
-                        {m.fechaHora}
-                      </td>
-                      <td className="py-2 px-3 font-sans">
-                        {m.tipo === 'INGRESO' ? (
-                          <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                            INGRESO
+                  {movimientos.map((m, idx) => {
+                    const fh = formatFechaHora(m.fechaHora);
+                    return (
+                      <tr key={`${m.id}_${idx}`} className="hover:bg-slate-50/70">
+                        <td className="py-2 px-3 font-sans text-slate-700 whitespace-nowrap font-medium">
+                          {fh.mes}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600 whitespace-nowrap">
+                          <span className="font-semibold text-slate-900">{fh.fecha}</span>{' '}
+                          <span className="text-[10px] text-slate-400 font-normal">{fh.hora}</span>
+                        </td>
+                        <td className="py-2 px-3 font-sans">
+                          {m.tipo === 'INGRESO' ? (
+                            <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              INGRESO
+                            </span>
+                          ) : (
+                            <span className="text-amber-800 font-medium text-[10px] bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              SALIDA
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 font-sans font-medium text-slate-900">
+                          {m.insumo}
+                        </td>
+                        <td className="py-2 px-3 text-right font-bold text-slate-900">
+                          {m.cantidad.toLocaleString('es-AR')}{' '}
+                          <span className="font-normal text-[10px] text-slate-400 font-sans">
+                            {m.unidad}
                           </span>
-                        ) : (
-                          <span className="text-amber-800 font-medium text-[10px] bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                            SALIDA
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 font-sans font-medium text-slate-900">
-                        {m.insumo}
-                      </td>
-                      <td className="py-2 px-3 text-right font-bold text-slate-900">
-                        {m.cantidad}{' '}
-                        <span className="font-normal text-[10px] text-slate-400 font-sans">
-                          {m.unidad}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 font-sans text-slate-700">
-                        {getCleanPersona(m)}
-                      </td>
-                      <td className="py-2 px-3 font-sans text-slate-600">
-                        {getCleanSector(m)}
-                      </td>
-                      <td className="py-2 px-3 text-right font-bold text-slate-900">
-                        ${Math.round(m.monto || 0).toLocaleString('es-AR')}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-2 px-3 font-sans text-slate-700">
+                          {getCleanPersona(m)}
+                        </td>
+                        <td className="py-2 px-3 font-sans text-slate-600">
+                          {getCleanSector(m)}
+                        </td>
+                        <td className="py-2 px-3 text-right font-bold text-slate-900">
+                          ${Math.round(m.monto || 0).toLocaleString('es-AR')}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
                   <tr>
-                    <td colSpan={3} className="py-2.5 px-3 font-sans text-slate-700 text-xs">
-                      TOTALES ({movimientos.length} registros):
+                    <td colSpan={4} className="py-2.5 px-3 font-sans text-slate-700 text-xs">
+                      TOTAL ({movimientos.length} movimientos: {salidasCount} salidas, {ingresosCount} ingresos):
                     </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-950 font-bold">
-                      {totalCantidad} u
-                    </td>
-                    <td colSpan={2}></td>
+                    <td colSpan={3}></td>
                     <td className="py-2.5 px-3 text-right font-mono text-sm text-slate-950 font-black">
                       $ {Math.round(totalMonto).toLocaleString('es-AR')}
                     </td>
@@ -349,4 +397,3 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
     </div>
   );
 };
-

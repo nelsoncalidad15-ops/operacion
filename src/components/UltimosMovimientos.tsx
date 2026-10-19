@@ -17,7 +17,7 @@ import {
 import { MovimientoHistorial, Colaborador } from '../types';
 import { PROVINCIAS, SECTORES } from '../data/config';
 import { api } from '../services/api';
-import { ReporteHistorialModal } from './ReporteHistorialModal';
+import { ReporteHistorialModal, formatFechaHora } from './ReporteHistorialModal';
 
 export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provinciaFija }) => {
   const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
@@ -29,7 +29,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
   const [filtroSector, setFiltroSector] = useState<string>('');
   const [filtroColaborador, setFiltroColaborador] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('');
-  const [filtroPeriodo, setFiltroPeriodo] = useState<string>('todos');
+  const [filtroMes, setFiltroMes] = useState<string>(''); // e.g. "2026-10" o ""
+  const [filtroFecha, setFiltroFecha] = useState<string>(''); // e.g. "2026-10-19" o ""
   const [busqueda, setBusqueda] = useState<string>('');
 
   // Modal de reporte formal imprimible
@@ -60,6 +61,44 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
     loadData();
   }, [provinciaFiltro]);
 
+  // Lista dinámica de Meses disponibles ordenados del más reciente al más antiguo
+  const mesesDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    movimientos.forEach((m) => {
+      if (m.fechaHora && m.fechaHora.length >= 7) {
+        const raw = m.fechaHora.substring(0, 7);
+        if (/^\d{4}-\d{2}$/.test(raw)) {
+          set.add(raw);
+        }
+      }
+    });
+
+    const sorted = Array.from(set).sort().reverse();
+    const mesesNombres: { [k: string]: string } = {
+      '01': 'Enero',
+      '02': 'Febrero',
+      '03': 'Marzo',
+      '04': 'Abril',
+      '05': 'Mayo',
+      '06': 'Junio',
+      '07': 'Julio',
+      '08': 'Agosto',
+      '09': 'Septiembre',
+      '10': 'Octubre',
+      '11': 'Noviembre',
+      '12': 'Diciembre',
+    };
+
+    return sorted.map((key) => {
+      const [anio, mes] = key.split('-');
+      const nombre = mesesNombres[mes] || mes;
+      return {
+        key,
+        label: `${nombre} ${anio}`,
+      };
+    });
+  }, [movimientos]);
+
   // Lista dinámica de Sectores disponibles
   const sectoresDisponibles = useMemo(() => {
     const set = new Set<string>(SECTORES);
@@ -73,11 +112,9 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
   // Lista dinámica de Colaboradores disponibles (técnicos / lavadores)
   const colaboradoresDisponibles = useMemo(() => {
     const map = new Map<string, string>(); // nombre -> sector
-    // Agregar desde base de datos
     colaboradores.forEach((c) => {
       if (c.nombre) map.set(c.nombre.trim(), c.sector || '');
     });
-    // Agregar desde historial de movimientos
     movimientos.forEach((m) => {
       const raw = m.solicitante || m.persona.replace(/\s*\(Aut:.*\)$/i, '').trim();
       if (raw && !map.has(raw)) {
@@ -92,16 +129,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
 
   // Filtrado reactivo de movimientos
   const movimientosFiltrados = useMemo(() => {
-    const ahora = new Date();
-    const hoyStr = ahora.toISOString().slice(0, 10);
-    const hace7Dias = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const esteMesStr = hoyStr.slice(0, 7);
-
-    const mesAnteriorDate = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
-    const mesAnteriorStr = `${mesAnteriorDate.getFullYear()}-${(mesAnteriorDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
     return movimientos.filter((m) => {
-      // Filtro provincia
+      // Filtro provincia / base
       const baseActual = provinciaFija || provinciaFiltro;
       if (baseActual && m.provincia.toLowerCase() !== baseActual.toLowerCase()) {
         return false;
@@ -124,18 +153,13 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
         return false;
       }
 
-      // Filtro de Fecha / Período
-      const fechaCorta = (m.fechaHora || '').slice(0, 10);
-      if (filtroPeriodo === 'hoy' && fechaCorta !== hoyStr) {
+      // Filtro de Mes (ej: "2026-10")
+      if (filtroMes && !m.fechaHora?.startsWith(filtroMes)) {
         return false;
       }
-      if (filtroPeriodo === '7dias' && fechaCorta < hace7Dias) {
-        return false;
-      }
-      if (filtroPeriodo === 'este_mes' && !fechaCorta.startsWith(esteMesStr)) {
-        return false;
-      }
-      if (filtroPeriodo === 'mes_anterior' && !fechaCorta.startsWith(mesAnteriorStr)) {
+
+      // Filtro de Fecha puntual (ej: "2026-10-19")
+      if (filtroFecha && !m.fechaHora?.startsWith(filtroFecha)) {
         return false;
       }
 
@@ -160,19 +184,18 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
     filtroTipo,
     filtroSector,
     filtroColaborador,
-    filtroPeriodo,
+    filtroMes,
+    filtroFecha,
     busqueda,
   ]);
 
   // Resumen numérico de los resultados filtrados
   const metrics = useMemo(() => {
-    const totalCantidad = movimientosFiltrados.reduce((acc, curr) => acc + (curr.cantidad || 0), 0);
     const totalMonto = movimientosFiltrados.reduce((acc, curr) => acc + (curr.monto || 0), 0);
     const countSalidas = movimientosFiltrados.filter((m) => m.tipo === 'SALIDA').length;
     const countIngresos = movimientosFiltrados.filter((m) => m.tipo === 'INGRESO').length;
 
     return {
-      totalCantidad,
       totalMonto,
       countSalidas,
       countIngresos,
@@ -181,20 +204,23 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
   }, [movimientosFiltrados]);
 
   const hayFiltrosActivos = Boolean(
-    filtroSector || filtroColaborador || filtroTipo || filtroPeriodo !== 'todos' || busqueda.trim()
+    filtroSector || filtroColaborador || filtroTipo || filtroMes || filtroFecha || busqueda.trim()
   );
 
   const handleLimpiarFiltros = () => {
     setFiltroSector('');
     setFiltroColaborador('');
     setFiltroTipo('');
-    setFiltroPeriodo('todos');
+    setFiltroMes('');
+    setFiltroFecha('');
     setBusqueda('');
   };
 
   const handleDescargarExcel = () => {
     const headers = [
-      'Fecha/Hora',
+      'Mes',
+      'Fecha',
+      'Hora',
       'Tipo',
       'Insumo',
       'Cantidad',
@@ -206,27 +232,35 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
       'Monto ($)',
     ];
 
-    const rows = movimientosFiltrados.map((m) => [
-      `"${m.fechaHora}"`,
-      `"${m.tipo}"`,
-      `"${m.insumo.replace(/"/g, '""')}"`,
-      m.cantidad,
-      `"${m.unidad}"`,
-      `"${(m.solicitante || m.persona).replace(/"/g, '""')}"`,
-      `"${(m.sector || m.sectorOProveedor).replace(/"/g, '""')}"`,
-      `"${m.provincia}"`,
-      `"${m.estado}"`,
-      Math.round(m.monto || 0),
-    ]);
+    const rows = movimientosFiltrados.map((m) => {
+      const fh = formatFechaHora(m.fechaHora);
+      return [
+        `"${fh.mes}"`,
+        `"${fh.fecha}"`,
+        `"${fh.hora}"`,
+        `"${m.tipo}"`,
+        `"${m.insumo.replace(/"/g, '""')}"`,
+        m.cantidad,
+        `"${m.unidad}"`,
+        `"${(m.solicitante || m.persona).replace(/"/g, '""')}"`,
+        `"${(m.sector || m.sectorOProveedor).replace(/"/g, '""')}"`,
+        `"${m.provincia}"`,
+        `"${m.estado}"`,
+        Math.round(m.monto || 0),
+      ];
+    });
+
+    const mesActualLabel = mesesDisponibles.find((m) => m.key === filtroMes)?.label || filtroMes || 'Todos';
 
     const metadata = [
       ['HISTORIAL DE MOVIMIENTOS - AUTOSOL'],
       [`Fecha de descarga: ${new Date().toLocaleString('es-AR')}`],
       [`Base: ${provinciaFija || provinciaFiltro || 'Todas'}`],
+      [`Filtro Mes: ${mesActualLabel}`],
+      [`Filtro Fecha: ${filtroFecha || 'Todas'}`],
       [`Área: ${filtroSector || 'Todas'}`],
       [`Colaborador: ${filtroColaborador || 'Todos'}`],
       [`Tipo: ${filtroTipo || 'Todos'}`],
-      [`Período: ${filtroPeriodo}`],
       [`Total Registros: ${metrics.total}`],
       [`Total Monto: $ ${Math.round(metrics.totalMonto)}`],
       [],
@@ -238,20 +272,23 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
         ...metadata.map((r) => r.join(';')),
         headers.join(';'),
         ...rows.map((r) => r.join(';')),
-        ['TOTALES', '', '', metrics.totalCantidad, '', '', '', '', '', Math.round(metrics.totalMonto)].join(';'),
+        ['TOTALES', '', '', '', '', '', '', '', '', '', '', Math.round(metrics.totalMonto)].join(';'),
       ].join('\n');
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     const dateStr = new Date().toISOString().slice(0, 10);
+    const mesTag = filtroMes ? `_${filtroMes}` : '';
     const secTag = filtroSector ? `_${filtroSector}` : '';
     const colabTag = filtroColaborador ? `_${filtroColaborador.replace(/\s+/g, '_')}` : '';
-    link.setAttribute('download', `Movimientos_Autosol${secTag}${colabTag}_${dateStr}.csv`);
+    link.setAttribute('download', `Movimientos_Autosol${mesTag}${secTag}${colabTag}_${dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  const mesActivoLabel = mesesDisponibles.find((m) => m.key === filtroMes)?.label;
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-5">
@@ -262,7 +299,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
             Historial de Movimientos
           </h1>
           <p className="text-xs text-slate-500">
-            Registro de ingresos, compras y salidas con filtros por colaborador, área y descarga de reportes
+            Registro ordenado por mes, fecha y hora · Filtros por colaborador y área · Descarga de reportes
           </p>
         </div>
 
@@ -316,7 +353,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
 
       {/* Barra de Filtros Interactiva */}
       <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
           {/* 1. Búsqueda por texto libre */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -382,19 +419,40 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
             </select>
           </div>
 
-          {/* 5. Filtro de Período / Fecha */}
+          {/* 5. Filtro de MES (Solicitado explícitamente: diga Mes) */}
           <div>
             <select
-              value={filtroPeriodo}
-              onChange={(e) => setFiltroPeriodo(e.target.value)}
+              value={filtroMes}
+              onChange={(e) => setFiltroMes(e.target.value)}
               className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-700"
             >
-              <option value="todos">Todo el Historial</option>
-              <option value="hoy">Hoy</option>
-              <option value="7dias">Últimos 7 días</option>
-              <option value="este_mes">Este mes</option>
-              <option value="mes_anterior">Mes anterior</option>
+              <option value="">Mes: Todos los meses</option>
+              {mesesDisponibles.map((m) => (
+                <option key={m.key} value={m.key}>
+                  Mes: {m.label}
+                </option>
+              ))}
             </select>
+          </div>
+
+          {/* 6. Filtro por Fecha Puntual */}
+          <div className="relative">
+            <input
+              type="date"
+              value={filtroFecha}
+              onChange={(e) => setFiltroFecha(e.target.value)}
+              title="Filtrar por fecha puntual (Día/Mes/Año)"
+              className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-700"
+            />
+            {filtroFecha && (
+              <button
+                onClick={() => setFiltroFecha('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                title="Quitar filtro de fecha"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -402,7 +460,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
           <div className="flex flex-wrap items-center gap-3 text-slate-600">
             <span className="font-medium">
-              Resultados: <strong className="text-slate-900 font-mono">{metrics.total}</strong>
+              Movimientos: <strong className="text-slate-900 font-mono">{metrics.total}</strong>
             </span>
             <span className="text-slate-300">|</span>
             <span>
@@ -433,12 +491,13 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
         </div>
       </div>
 
-      {/* Tabla de Movimientos */}
+      {/* Tabla de Movimientos Mejor Ordenada con Mes, Fecha y Hora */}
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 text-[11px] font-semibold">
               <tr>
+                <th className="py-2.5 px-3">Mes</th>
                 <th className="py-2.5 px-3">Fecha y Hora</th>
                 <th className="py-2.5 px-3">Tipo</th>
                 <th className="py-2.5 px-3">Insumo</th>
@@ -452,14 +511,14 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
             <tbody className="divide-y divide-slate-100">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin text-slate-400" />
                     Cargando historial de movimientos...
                   </td>
                 </tr>
               ) : movimientosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                  <td colSpan={9} className="py-12 text-center text-slate-400">
                     <p className="font-medium text-slate-600">No se encontraron movimientos.</p>
                     <p className="text-[11px] text-slate-400 mt-1">
                       {hayFiltrosActivos
@@ -470,6 +529,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
                 </tr>
               ) : (
                 movimientosFiltrados.map((m, idx) => {
+                  const fh = formatFechaHora(m.fechaHora);
                   const solicitanteLimpio =
                     m.solicitante || m.persona.replace(/\s*\(Aut:.*\)$/i, '').trim();
                   const autorizador = m.persona.match(/\(Aut:\s*(.*?)\)/i)?.[1];
@@ -480,9 +540,26 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
                       key={`${m.id}_${idx}`}
                       className="hover:bg-slate-50/70 font-mono text-[11px] transition-colors"
                     >
-                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
-                        {m.fechaHora}
+                      {/* Columna 1: MES */}
+                      <td className="py-2.5 px-3 font-sans whitespace-nowrap">
+                        <span className="inline-block px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200">
+                          {fh.mes}
+                        </span>
                       </td>
+
+                      {/* Columna 2: FECHA Y HORA */}
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="font-mono text-slate-900 font-semibold text-[11px]">
+                          {fh.fecha}
+                        </div>
+                        {fh.hora && (
+                          <div className="font-mono text-[10px] text-slate-400 font-normal">
+                            {fh.hora}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Columna 3: TIPO */}
                       <td className="py-2.5 px-3 font-sans whitespace-nowrap">
                         {m.tipo === 'INGRESO' ? (
                           <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold text-[10px] border border-emerald-200">
@@ -496,15 +573,21 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
                           </span>
                         )}
                       </td>
+
+                      {/* Columna 4: INSUMO */}
                       <td className="py-2.5 px-3 font-sans font-medium text-slate-900">
                         {m.insumo}
                       </td>
+
+                      {/* Columna 5: CANTIDAD */}
                       <td className="py-2.5 px-3 text-right font-bold text-slate-900">
-                        {m.cantidad}{' '}
+                        {m.cantidad.toLocaleString('es-AR')}{' '}
                         <span className="font-normal text-slate-400 text-[10px] font-sans">
                           {m.unidad}
                         </span>
                       </td>
+
+                      {/* Columna 6: OPERARIO */}
                       <td className="py-2.5 px-3 font-sans text-slate-800">
                         <span className="font-medium">{solicitanteLimpio}</span>
                         {autorizador && (
@@ -513,14 +596,20 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
                           </span>
                         )}
                       </td>
+
+                      {/* Columna 7: SECTOR */}
                       <td className="py-2.5 px-3 font-sans text-slate-600">
                         <span className="inline-block px-1.5 py-0.5 bg-slate-100 rounded text-[10px] font-medium text-slate-700">
                           {sectorLimpio}
                         </span>
                       </td>
+
+                      {/* Columna 8: BASE */}
                       <td className="py-2.5 px-3 font-sans text-slate-500">
                         {m.provincia}
                       </td>
+
+                      {/* Columna 9: MONTO */}
                       <td className="py-2.5 px-3 text-right text-slate-900 font-bold">
                         ${Math.round(m.monto || 0).toLocaleString('es-AR')}
                       </td>
@@ -540,11 +629,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
             </span>
             <div className="flex items-center gap-4">
               <span>
-                Total insumos entregados / movilizados:{' '}
-                <strong className="font-mono text-slate-900 font-bold">{metrics.totalCantidad}</strong>
-              </span>
-              <span>
-                Monto valorizado:{' '}
+                Monto valorizado total:{' '}
                 <strong className="font-mono text-slate-950 font-black">
                   ${Math.round(metrics.totalMonto).toLocaleString('es-AR')}
                 </strong>
@@ -564,7 +649,9 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
           sector: filtroSector,
           colaborador: filtroColaborador,
           tipo: filtroTipo,
-          periodo: filtroPeriodo,
+          mes: filtroMes,
+          mesLabel: mesActivoLabel,
+          fecha: filtroFecha,
           busqueda,
         }}
       />

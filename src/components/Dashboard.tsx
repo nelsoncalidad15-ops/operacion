@@ -208,9 +208,8 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
         nombre: string;
         sector: string;
         montoTotal: number;
-        cantidadTotal: number;
         retirosCount: number;
-        insumosMap: Map<string, number>;
+        insumosMap: Map<string, { cantidad: number; unidad: string }>;
       }
     >();
 
@@ -223,54 +222,62 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
         nombre,
         sector,
         montoTotal: 0,
-        cantidadTotal: 0,
         retirosCount: 0,
-        insumosMap: new Map<string, number>(),
+        insumosMap: new Map<string, { cantidad: number; unidad: string }>(),
       };
 
       existing.montoTotal += s.monto || 0;
-      existing.cantidadTotal += s.cantidad || 0;
       existing.retirosCount += 1;
-      existing.insumosMap.set(s.insumo, (existing.insumosMap.get(s.insumo) || 0) + (s.cantidad || 0));
+
+      const prev = existing.insumosMap.get(s.insumo) || { cantidad: 0, unidad: s.unidad || 'u' };
+      prev.cantidad += s.cantidad || 0;
+      if (s.unidad) prev.unidad = s.unidad;
+      existing.insumosMap.set(s.insumo, prev);
+
       colabMap.set(nombre, existing);
     }
 
     const list = Array.from(colabMap.values()).map((c) => {
       let topInsumo = '';
       let topInsumoCant = 0;
-      for (const [ins, cant] of c.insumosMap.entries()) {
-        if (cant > topInsumoCant) {
+      let topInsumoUnidad = '';
+      for (const [ins, info] of c.insumosMap.entries()) {
+        if (info.cantidad > topInsumoCant) {
           topInsumo = ins;
-          topInsumoCant = cant;
+          topInsumoCant = info.cantidad;
+          topInsumoUnidad = info.unidad;
         }
       }
+
+      const uLimpia = (topInsumoUnidad || 'u').trim();
+      const cantTexto = `${topInsumoCant.toLocaleString('es-AR')} ${uLimpia}`;
+
       return {
         nombre: c.nombre,
         sector: c.sector,
         montoTotal: c.montoTotal,
-        cantidadTotal: c.cantidadTotal,
         retirosCount: c.retirosCount,
-        topInsumo: topInsumo ? `${topInsumo} (${topInsumoCant}u)` : '',
+        topInsumo: topInsumo ? `${topInsumo} (${cantTexto})` : '',
       };
     });
 
     // Ordenamiento por consumo mayor o menor
     if (colabOrden === 'mas') {
-      list.sort((a, b) => b.montoTotal - a.montoTotal || b.cantidadTotal - a.cantidadTotal);
+      list.sort((a, b) => b.montoTotal - a.montoTotal || b.retirosCount - a.retirosCount);
     } else {
-      list.sort((a, b) => a.montoTotal - b.montoTotal || a.cantidadTotal - b.cantidadTotal);
+      list.sort((a, b) => a.montoTotal - b.montoTotal || a.retirosCount - b.retirosCount);
     }
 
     const maxMonto = list.length > 0 ? Math.max(...list.map((c) => c.montoTotal), 1) : 1;
     const totalConsumido = list.reduce((a, c) => a + c.montoTotal, 0);
-    const totalCantidadInsumos = list.reduce((a, c) => a + c.cantidadTotal, 0);
+    const totalPedidos = list.reduce((a, c) => a + c.retirosCount, 0);
     const promedioConsumo = list.length > 0 ? Math.round(totalConsumido / list.length) : 0;
 
     return {
       list,
       maxMonto,
       totalConsumido,
-      totalCantidadInsumos,
+      totalPedidos,
       promedioConsumo,
       colaboradoresActivos: list.length,
     };
@@ -718,9 +725,9 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
             </span>
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">Insumos entregados</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Retiros autorizados</span>
             <span className="font-mono font-bold text-slate-800 text-sm">
-              {consumoColaboradores.totalCantidadInsumos} u
+              {consumoColaboradores.totalPedidos} solicitud{consumoColaboradores.totalPedidos === 1 ? '' : 'es'}
             </span>
           </div>
           <div>
@@ -785,7 +792,7 @@ export const Dashboard: React.FC<{ session: AuthSession }> = ({ session }) => {
 
                     <div className="flex items-center gap-3 font-mono text-xs justify-between sm:justify-end">
                       <span className="text-slate-500 text-[11px]">
-                        {c.retirosCount} pedido{c.retirosCount === 1 ? '' : 's'} · {c.cantidadTotal} u
+                        {c.retirosCount} pedido{c.retirosCount === 1 ? '' : 's'}
                       </span>
                       <span className="font-bold text-slate-900 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                         $ {Math.round(c.montoTotal).toLocaleString('es-AR')}
