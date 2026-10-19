@@ -10,15 +10,15 @@ import {
   ArrowUpRight,
   Sparkles,
 } from 'lucide-react';
-import { StockItem, Ingreso, Salida } from '../types';
+import { StockItem, MovimientoHistorial } from '../types';
 import { PROVINCIAS } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 
 export const Dashboard: React.FC = () => {
   const [stockList, setStockList] = useState<StockItem[]>([]);
-  const [ingresos, setIngresos] = useState<Ingreso[]>([]);
-  const [salidas, setSalidas] = useState<Salida[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoHistorial[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isCleaning, setIsCleaning] = useState<boolean>(false);
   const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
@@ -27,60 +27,21 @@ export const Dashboard: React.FC = () => {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [stockRes] = await Promise.all([
+      setLoadError(null);
+      const [stockRes, movimientosRes] = await Promise.all([
         api.getStock(provinciaFiltro || undefined),
+        api.getUltimosMovimientos(100000),
       ]);
-      if (stockRes.ok && stockRes.data) {
-        setStockList(stockRes.data);
+      if (!stockRes.ok || !movimientosRes.ok) {
+        throw new Error(stockRes.message || movimientosRes.message || 'No se pudieron cargar los datos.');
       }
-
-      const storedIngresos: Ingreso[] = JSON.parse(localStorage.getItem('ci_ingresos_v1') || '[]');
-      const storedSalidas: Salida[] = JSON.parse(localStorage.getItem('ci_salidas_v1') || '[]');
-
-      // Filtrar movimientos de prueba que venían en la maqueta inicial
-      const idsPruebaIngresos = [
-        'ING-20260920-00001',
-        'ING-20260921-00002',
-        'ING-20260922-00003',
-        'ING-20260925-00004',
-      ];
-      const compsPrueba = [
-        'FAC-A-0001-00084321',
-        'FAC-B-0003-00012903',
-        'FAC-A-0002-00045129',
-        'FAC-A-0001-00084550',
-      ];
-      const idsPruebaSalidas = ['SAL-20260927-00001', 'SAL-20260929-00001', 'SAL-20260929-00002'];
-
-      const ingresosReales = storedIngresos.filter(
-        (i) => !idsPruebaIngresos.includes(i.idMovimiento) && !compsPrueba.includes(i.comprobante)
-      );
-
-      const salidasReales = storedSalidas.filter(
-        (s) => !idsPruebaSalidas.includes(s.idSolicitud)
-      );
-
-      // Si localStorage aún tenía guardados los viejos de prueba, limpiarlos también del almacenamiento
-      if (ingresosReales.length !== storedIngresos.length) {
-        localStorage.setItem('ci_ingresos_v1', JSON.stringify(ingresosReales));
-      }
-      if (salidasReales.length !== storedSalidas.length) {
-        localStorage.setItem('ci_salidas_v1', JSON.stringify(salidasReales));
-      }
-
-      setIngresos(
-        provinciaFiltro
-          ? ingresosReales.filter((i) => i.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : ingresosReales
-      );
-
-      setSalidas(
-        provinciaFiltro
-          ? salidasReales.filter((s) => s.provincia.toLowerCase() === provinciaFiltro.toLowerCase())
-          : salidasReales
-      );
+      setStockList(stockRes.data || []);
+      setMovimientos((movimientosRes.data || []).filter((m) =>
+        !provinciaFiltro || m.provincia.toLowerCase() === provinciaFiltro.toLowerCase()
+      ));
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
+      setLoadError(err.message || 'No se pudieron cargar los datos.');
     } finally {
       setIsLoading(false);
     }
@@ -106,16 +67,16 @@ export const Dashboard: React.FC = () => {
   };
 
   const metrics = useMemo(() => {
-    const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.total || 0), 0);
-    const salidasValidas = salidas.filter(
-      (s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL'
-    );
+    const ingresos = movimientos.filter((m) => m.tipo === 'INGRESO' && /(?:^Compra$|\(Compra\)\s*$)/i.test(m.sectorOProveedor));
+    const salidas = movimientos.filter((m) => m.tipo === 'SALIDA');
+    const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.monto || 0), 0);
+    const salidasValidas = salidas.filter((s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL');
 
-    const totalSalidasMonto = salidasValidas.reduce((acc, curr) => acc + (curr.valorSalida || 0), 0);
+    const totalSalidasMonto = salidasValidas.reduce((acc, curr) => acc + (curr.monto || 0), 0);
     const valorStockActual = stockList.reduce((acc, curr) => acc + (curr.valorStock || 0), 0);
 
-    const totalSolicitado = salidas.reduce((acc, curr) => acc + (curr.cantidadSolicitada || 0), 0);
-    const totalAutorizado = salidas.reduce((acc, curr) => acc + (curr.cantidadAutorizada || 0), 0);
+    const totalSolicitado = salidas.reduce((acc, curr) => acc + (curr.solicitado || 0), 0);
+    const totalAutorizado = salidasValidas.reduce((acc, curr) => acc + (curr.cantidad || 0), 0);
     const tasaAprobacion = totalSolicitado > 0 ? Math.round((totalAutorizado / totalSolicitado) * 100) : 100;
 
     // Conteo de Estados de Stock (Salud del inventario)
@@ -157,9 +118,10 @@ export const Dashboard: React.FC = () => {
     // Insumos más demandados (Salidas generales)
     const insumoMap = new Map<string, { nombre: string; cantidad: number; unidad?: string }>();
     for (const s of salidasValidas) {
-      const existing = insumoMap.get(s.idInsumo) || { nombre: s.insumo, cantidad: 0 };
-      existing.cantidad += s.cantidadAutorizada;
-      insumoMap.set(s.idInsumo, existing);
+      const key = `${s.provincia}:${s.idInsumo || s.insumo}`;
+      const existing = insumoMap.get(key) || { nombre: s.insumo, cantidad: 0, unidad: s.unidad };
+      existing.cantidad += s.cantidad;
+      insumoMap.set(key, existing);
     }
     const topInsumos = Array.from(insumoMap.values())
       .sort((a, b) => b.cantidad - a.cantidad)
@@ -168,8 +130,8 @@ export const Dashboard: React.FC = () => {
     // Consumo por sector
     const sectorMap = new Map<string, number>();
     for (const s of salidasValidas) {
-      const sec = s.sector || 'Otros';
-      sectorMap.set(sec, (sectorMap.get(sec) || 0) + (s.valorSalida || 0));
+      const sec = s.sectorOProveedor || 'Otros';
+      sectorMap.set(sec, (sectorMap.get(sec) || 0) + (s.monto || 0));
     }
     const porSector = Array.from(sectorMap.entries())
       .map(([sector, monto]) => ({ sector, monto }))
@@ -191,6 +153,7 @@ export const Dashboard: React.FC = () => {
       valorStockActual,
       totalSalidasMonto,
       totalComprasMonto,
+      comprasCount: ingresos.length,
       tasaAprobacion,
       criticosCount: criticos.length,
       bajosCount: bajos.length,
@@ -205,10 +168,11 @@ export const Dashboard: React.FC = () => {
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, ingresos, salidas]);
+  }, [stockList, movimientos]);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
+      {loadError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{loadError}</div>}
       {/* Header Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
@@ -338,7 +302,7 @@ export const Dashboard: React.FC = () => {
             $ {Math.round(metrics.totalComprasMonto).toLocaleString('es-AR')}
           </div>
           <div className="text-[11px] text-slate-500 mt-1">
-            {ingresos.length} compras registradas
+            {metrics.comprasCount} compras registradas
           </div>
         </div>
       </div>
@@ -560,7 +524,7 @@ export const Dashboard: React.FC = () => {
                     <span className="font-medium text-slate-900">{item.nombre}</span>
                   </div>
                   <span className="font-mono font-bold text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {item.cantidad} u.
+                    {item.cantidad} {item.unidad || 'u'}
                   </span>
                 </div>
               ))
@@ -579,3 +543,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
