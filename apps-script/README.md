@@ -101,7 +101,7 @@ Para no exponer tu ID de planilla ni los PINs en el código:
      {"111111":{"nombre":"Responsable Jujuy","provincia":"Jujuy"},"222222":{"nombre":"Responsable Salta","provincia":"Salta"}}
      ```
      Los PINs se escriben como claves entre comillas. El valor `nombre` se registra en compras y autorizaciones; `provincia` limita las operaciones de ese PIN a su base. Al guardar esta propiedad, reemplaza los PINs predeterminados. La propiedad `SPREADSHEET_ID` se conserva sin cambios.
-     Primero actualizá la implementación web de Apps Script con el código nuevo; después guardá `RESPONSABLES_JSON`. Si ya hay sesiones iniciadas, cerrá sesión y volvé a entrar para recibir la base asignada.
+     Pegá el código nuevo en el editor, guardá `RESPONSABLES_JSON` y enseguida actualizá la implementación web de Apps Script a una versión nueva. Durante ese cambio breve no uses la app. Si ya hay sesiones iniciadas, cerrá sesión y volvé a entrar para recibir la base asignada.
 
 ---
 
