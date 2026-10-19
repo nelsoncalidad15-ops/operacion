@@ -29,7 +29,11 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
   const [solicitudes, setSolicitudes] = useState<Salida[]>([]);
   const [stockMap, setStockMap] = useState<Map<string, StockItem>>(new Map());
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [provinciaFiltro, setProvinciaFiltro] = useState<string>('');
+  const [provinciaFiltro, setProvinciaFiltro] = useState<string>(session?.provincia || '');
+
+  useEffect(() => {
+    if (session?.provincia) setProvinciaFiltro(session.provincia);
+  }, [session?.provincia]);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const loadPendientes = async () => {
@@ -37,8 +41,8 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
     setIsLoading(true);
     try {
       const [salRes, stockRes] = await Promise.all([
-        api.getSolicitudesPendientes(provinciaFiltro || undefined),
-        api.getStock(provinciaFiltro || undefined),
+        api.getSolicitudesPendientes(session.provincia || provinciaFiltro || undefined),
+        api.getStock(session.provincia || provinciaFiltro || undefined),
       ]);
 
       if (salRes.ok && salRes.data) {
@@ -185,8 +189,8 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
             onChange={(e) => setProvinciaFiltro(e.target.value)}
             className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 focus:outline-none"
           >
-            <option value="">Todas las bases</option>
-            {PROVINCIAS.map((p) => (
+            {!session.provincia && <option value="">Todas las bases</option>}
+            {(session.provincia ? [session.provincia] : PROVINCIAS).map((p) => (
               <option key={p} value={p}>{p}</option>
             ))}
           </select>
@@ -281,3 +285,4 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
     </div>
   );
 };
+
