@@ -20,7 +20,7 @@ export default function App() {
 
   const updatePendingCount = useCallback(async () => {
     try {
-      const res = await api.getSolicitudesPendientes();
+      const res = await api.getSolicitudesPendientes(api.getSession()?.provincia || undefined);
       if (res.ok && res.data) {
         setPendingCount(res.data.length);
       }
@@ -68,7 +68,7 @@ export default function App() {
           />
         )}
 
-        {session && activeTab === 'dashboard' && <Dashboard />}
+        {session && activeTab === 'dashboard' && <Dashboard session={session} />}
 
         {session && activeTab === 'autorizaciones' && (
           <Autorizaciones
@@ -78,9 +78,9 @@ export default function App() {
           />
         )}
 
-        {session && activeTab === 'stock' && <StockTable />}
+        {session && activeTab === 'stock' && <StockTable provinciaFija={session.provincia} />}
 
-        {session && activeTab === 'demanda' && <DemandaMensual />}
+        {session && activeTab === 'demanda' && <DemandaMensual provinciaFija={session.provincia} />}
 
         {session && activeTab === 'ingresos' && (
           <Ingresos
@@ -90,7 +90,7 @@ export default function App() {
           />
         )}
 
-        {session && activeTab === 'movimientos' && <UltimosMovimientos />}
+        {session && activeTab === 'movimientos' && <UltimosMovimientos provinciaFija={session.provincia} />}
         {session && activeTab === 'administrar' && <Administrar session={session} />}
       </main>
 
@@ -108,3 +108,4 @@ export default function App() {
     </div>
   );
 }
+
