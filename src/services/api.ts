@@ -286,10 +286,8 @@ class ApiService {
   // ==========================================
   public async getColaboradores(provincia?: string): Promise<ApiResponse<Colaborador[]>> {
     if (this.isLiveConnected()) {
-      const res = await this.callAppsScript<Colaborador[]>('getColaboradores', { provincia });
-      if (res.ok && res.data && res.data.length > 0) {
-        return res;
-      }
+      // Sheets es la fuente de verdad, incluso cuando la base aún no tiene personas.
+      return this.callAppsScript<Colaborador[]>('getColaboradores', { provincia });
     }
 
     try {
@@ -1087,3 +1085,4 @@ class ApiService {
 }
 
 export const api = new ApiService();
+
