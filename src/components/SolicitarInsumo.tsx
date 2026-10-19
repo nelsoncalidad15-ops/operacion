@@ -40,16 +40,24 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputSearchRef = useRef<HTMLInputElement>(null);
+  const loadSequence = useRef(0);
 
   const loadData = async (prov: string) => {
+    const sequence = ++loadSequence.current;
     setIsLoadingData(true);
     setErrorMessage(null);
+    setColaboradoresList([]);
+    setInsumosList([]);
+    setStockList([]);
+    setSolicitante('');
+    setSector('Taller');
     try {
       const [insRes, stockRes, colabRes] = await Promise.all([
         api.getInsumos(prov),
         api.getStock(prov),
         api.getColaboradores(prov),
       ]);
+      if (sequence !== loadSequence.current) return;
       if (insRes.ok && insRes.data) {
         setInsumosList(insRes.data.filter((i) => i.activo === 'Sí'));
       }
@@ -58,22 +66,30 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
       }
       if (colabRes.ok && colabRes.data) {
         setColaboradoresList(colabRes.data);
+      } else {
+        setErrorMessage(colabRes.message || 'No se pudo leer COLABORADORES de la planilla. Intentá actualizar.');
       }
-      const recents = api.getRecentColaboradores(prov);
+      const recents = api.getRecentColaboradores(prov).filter((recent) =>
+        colabRes.ok && colabRes.data?.some((c) => c.nombre === recent.nombre && c.sector === recent.sector)
+      );
       setRecentColaboradores(recents);
 
-      if (!solicitante && recents.length > 0) {
+      if (recents.length > 0) {
         setSolicitante(recents[0].nombre);
         setSector(recents[0].sector);
       }
     } catch (err: any) {
+      if (sequence !== loadSequence.current) return;
       console.error('Error cargando datos:', err);
+      setErrorMessage('No se pudieron leer los datos de la planilla. Intentá actualizar.');
     } finally {
-      setIsLoadingData(false);
+      if (sequence === loadSequence.current) setIsLoadingData(false);
     }
   };
 
   useEffect(() => {
+    setSolicitante('');
+    setSector('Taller');
     loadData(provincia);
     setSelectedInsumoId('');
     setSearchQuery('');
@@ -249,6 +265,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
             </div>
 
             {/* Base */}
+            <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 p-0.5 rounded-lg">
               {PROVINCIAS.map((p) => (
                 <button
@@ -262,6 +279,10 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
                   {p}
                 </button>
               ))}
+            </div>
+            <button type="button" onClick={() => loadData(provincia)} disabled={isLoadingData}
+              className="px-2 py-2 text-xs font-medium text-slate-600 border border-slate-200 rounded-lg disabled:opacity-50"
+              title="Volver a leer insumos y colaboradores de la planilla">Actualizar</button>
             </div>
           </div>
 
@@ -452,7 +473,7 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={isSubmitting || !selectedInsumoId || stockDisponible <= 0}
+              disabled={isSubmitting || isLoadingData || !colaboradoresList.some((c) => c.nombre === solicitante) || !selectedInsumoId || stockDisponible <= 0}
               className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5"
             >
               <span>{isSubmitting ? 'Enviando...' : 'Solicitar Insumo'}</span>
@@ -477,3 +498,4 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
     </div>
   );
 };
+
