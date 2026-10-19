@@ -78,3 +78,4 @@ function guardarColaborador(payload, token) {
   else hoja.appendRow(valores[0]);
   return crearRespuesta(true, { nombre: nombre, sector: sector, provincia: provincia }, fila > 0 ? 'Colaborador actualizado.' : 'Colaborador creado.');
 }
+

@@ -30,3 +30,4 @@ test('cada PIN obtiene su base y no puede operar en la otra', () => {
   assert.equal(context.sesionPuedeOperarProvincia(context.verificarSesion(salta.data.token), 'Salta'), true);
   assert.equal(context.validarPinResponsable('1423').ok, false);
 });
+

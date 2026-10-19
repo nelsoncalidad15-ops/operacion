@@ -386,3 +386,4 @@ export const Ingresos: React.FC<IngresosProps> = ({
     </div>
   );
 };
+

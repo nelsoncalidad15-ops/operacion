@@ -66,3 +66,4 @@ export function Administrar({ session }: { session: AuthSession }) {
     </div>}
   </div>;
 }
+

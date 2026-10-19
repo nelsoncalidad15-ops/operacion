@@ -86,3 +86,4 @@ function verificarSesion(token) {
     return null;
   }
 }
+

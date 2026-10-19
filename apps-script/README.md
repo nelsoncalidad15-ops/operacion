@@ -125,3 +125,4 @@ Para no exponer tu ID de planilla ni los PINs en el código:
 3. Pega la URL de tu Web App de Google Apps Script.
 4. Presiona **Probar y Guardar Conexión**.
 5. El sistema verificará el `ping` con tu Google Sheets y quedará conectado en tiempo real.
+

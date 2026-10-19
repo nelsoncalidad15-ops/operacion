@@ -368,3 +368,4 @@ export const ReporteFaltantesModal: React.FC<ReporteFaltantesModalProps> = ({
     </div>
   );
 };
+

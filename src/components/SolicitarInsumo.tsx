@@ -498,3 +498,4 @@ export const SolicitarInsumo: React.FC<SolicitarInsumoProps> = ({
     </div>
   );
 };
+

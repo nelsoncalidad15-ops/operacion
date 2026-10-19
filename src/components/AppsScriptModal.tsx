@@ -663,3 +663,4 @@ function obtenerStock(provinciaFiltro) {
     </div>
   );
 };
+

@@ -115,3 +115,4 @@ export interface MovimientoHistorial {
   solicitante?: string;
   sector?: string;
 }
+

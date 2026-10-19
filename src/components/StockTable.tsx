@@ -198,3 +198,4 @@ export const StockTable: React.FC<{ provinciaFija?: string }> = ({ provinciaFija
     </div>
   );
 };
+

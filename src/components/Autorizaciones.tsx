@@ -285,3 +285,4 @@ export const Autorizaciones: React.FC<AutorizacionesProps> = ({
     </div>
   );
 };
+

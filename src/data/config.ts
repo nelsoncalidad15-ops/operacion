@@ -114,3 +114,4 @@ export const INITIAL_INGRESOS: Ingreso[] = [];
 export const INITIAL_SALIDAS: Salida[] = [];
 
 export const DEMO_RESPONSABLES: { [pin: string]: string } = {};
+

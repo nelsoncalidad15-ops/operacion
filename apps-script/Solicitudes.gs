@@ -367,3 +367,4 @@ function rechazarSolicitud(idSolicitud, motivoRechazo, token) {
     lock.releaseLock();
   }
 }
+

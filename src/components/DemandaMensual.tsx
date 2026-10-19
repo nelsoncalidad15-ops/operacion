@@ -90,3 +90,4 @@ export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provincia
     <ReporteFaltantesModal isOpen={showReporteModal} onClose={() => setShowReporteModal(false)} stockList={stockList} provinciaFiltro={provinciaFiltro} />
   </div>;
 };
+
