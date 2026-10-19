@@ -908,6 +908,31 @@ class ApiService {
   // ==========================================
   // PEDIDOS EN CAMINO (GESTIÓN DE COMPRAS)
   // ==========================================
+  // PEDIDOS EN CAMINO (SINCRONIZADO CON GOOGLE SHEETS)
+  // ==========================================
+  public async fetchPedidosEnCamino(provincia?: string): Promise<ApiResponse<PedidoEnCamino[]>> {
+    if (this.isLiveConnected()) {
+      try {
+        const res = await this.callAppsScript<PedidoEnCamino[]>('getPedidosEnCamino', { provincia });
+        if (res.ok && Array.isArray(res.data)) {
+          if (provincia) {
+            const actuales = this.getPedidosEnCamino().filter(
+              (p) => p.provincia.toLowerCase() !== provincia.toLowerCase()
+            );
+            const combinados = [...actuales, ...res.data];
+            localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(combinados));
+          } else {
+            localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(res.data));
+          }
+          return res;
+        }
+      } catch (err) {
+        console.warn('Error fetching pedidos en camino de Google Sheets, usando local:', err);
+      }
+    }
+    return { ok: true, data: this.getPedidosEnCamino(provincia) };
+  }
+
   public getPedidosEnCamino(provincia?: string): PedidoEnCamino[] {
     try {
       const data = localStorage.getItem(STORAGE_KEY_PEDIDOS_EN_CAMINO);
@@ -921,7 +946,10 @@ class ApiService {
     }
   }
 
-  public marcarPedidoEnCamino(pedido: Omit<PedidoEnCamino, 'fechaPedido'>): ApiResponse<PedidoEnCamino> {
+  public marcarPedidoEnCamino(
+    pedido: Omit<PedidoEnCamino, 'fechaPedido'>,
+    token?: string
+  ): ApiResponse<PedidoEnCamino> {
     try {
       const pedidos = this.getPedidosEnCamino();
       const index = pedidos.findIndex(
@@ -937,6 +965,14 @@ class ApiService {
         pedidos.push(nuevoPedido);
       }
       localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(pedidos));
+
+      // Sincronizar con Google Sheets en segundo plano
+      if (this.isLiveConnected()) {
+        this.callAppsScript('marcarPedidoEnCamino', { ...nuevoPedido, token: token || this.getSession()?.token }).catch((e) =>
+          console.warn('Error sincronizando marcarPedidoEnCamino en Sheets:', e)
+        );
+      }
+
       return { ok: true, data: nuevoPedido, message: 'Insumo marcado como pedido / en camino.' };
     } catch (err: any) {
       return { ok: false, message: err.message || 'Error guardando pedido en camino' };
@@ -950,6 +986,14 @@ class ApiService {
         (p) => !(p.idInsumo === idInsumo && p.provincia.toLowerCase() === provincia.toLowerCase())
       );
       localStorage.setItem(STORAGE_KEY_PEDIDOS_EN_CAMINO, JSON.stringify(filtrados));
+
+      // Sincronizar con Google Sheets en segundo plano
+      if (this.isLiveConnected()) {
+        this.callAppsScript('quitarPedidoEnCamino', { idInsumo, provincia }).catch((e) =>
+          console.warn('Error sincronizando quitarPedidoEnCamino en Sheets:', e)
+        );
+      }
+
       return { ok: true, data: true, message: 'Pedido en camino removido.' };
     } catch {
       return { ok: false, data: false };

@@ -47,9 +47,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
     setIsLoading(true);
     try {
       setLoadError(null);
-      const [stockRes, movimientosRes] = await Promise.all([
+      const [stockRes, movimientosRes, pedidosRes] = await Promise.all([
         api.getStock(session.provincia || provinciaFiltro || undefined),
         api.getUltimosMovimientos(100000),
+        api.fetchPedidosEnCamino(session.provincia || provinciaFiltro || undefined),
       ]);
       if (!stockRes.ok || !movimientosRes.ok) {
         throw new Error(stockRes.message || movimientosRes.message || 'No se pudieron cargar los datos.');
@@ -58,7 +59,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       setMovimientos((movimientosRes.data || []).filter((m) =>
         !(session.provincia || provinciaFiltro) || m.provincia.toLowerCase() === (session.provincia || provinciaFiltro).toLowerCase()
       ));
-      setPedidosEnCamino(api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
+      setPedidosEnCamino(pedidosRes.data || api.getPedidosEnCamino(session.provincia || provinciaFiltro || undefined));
     } catch (err: any) {
       console.error('Error cargando dashboard:', err);
       setLoadError(err.message || 'No se pudieron cargar los datos.');

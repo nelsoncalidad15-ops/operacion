@@ -19,8 +19,10 @@ export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provincia
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [stockRes, movimientosRes] = await Promise.all([
-        api.getStock(provinciaFija || provinciaFiltro || undefined), api.getUltimosMovimientos(10000),
+      const [stockRes, movimientosRes, pedidosRes] = await Promise.all([
+        api.getStock(provinciaFija || provinciaFiltro || undefined),
+        api.getUltimosMovimientos(10000),
+        api.fetchPedidosEnCamino(provinciaFija || provinciaFiltro || undefined),
       ]);
       if (stockRes.ok && stockRes.data) setStockList(stockRes.data);
       if (movimientosRes.ok && movimientosRes.data) {
@@ -28,7 +30,7 @@ export const DemandaMensual: React.FC<{ provinciaFija?: string }> = ({ provincia
           (m.estado === 'AUTORIZADO' || m.estado === 'AUTORIZADO PARCIAL') &&
           (!(provinciaFija || provinciaFiltro) || m.provincia.toLowerCase() === (provinciaFija || provinciaFiltro).toLowerCase())));
       }
-      setPedidosEnCamino(api.getPedidosEnCamino(provinciaFija || provinciaFiltro || undefined));
+      setPedidosEnCamino(pedidosRes.data || api.getPedidosEnCamino(provinciaFija || provinciaFiltro || undefined));
     } catch (err) { console.error('Error cargando demanda:', err); }
     finally { setIsLoading(false); }
   };

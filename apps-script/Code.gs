@@ -14,7 +14,8 @@ var CONFIG = {
     COLABORADORES: 'COLABORADORES',
     INGRESOS: 'INGRESOS',
     SALIDAS: 'SALIDAS',
-    STOCK: 'STOCK'
+    STOCK: 'STOCK',
+    PEDIDOS_EN_CAMINO: 'PEDIDOS_EN_CAMINO'
   },
 
   // Zona horaria de la empresa
@@ -1282,6 +1283,9 @@ function registrarIngreso(payload, token) {
     // Re-sincronizar el inventario
     recalcularStockCompleto();
 
+    // Si estaba marcado como pedido en camino, retirarlo automáticamente
+    quitarPedidoEnCamino(idInsumo, provincia);
+
     return crearRespuesta(true, {
       idMovimiento: idMovimiento,
       fechaHora: fechaHora,
@@ -1563,6 +1567,18 @@ function handleRequest(e) {
         result = obtenerHistorialMovimientos(payload.limit || 20);
         break;
 
+      case 'getPedidosEnCamino':
+        result = obtenerPedidosEnCamino(payload.provincia);
+        break;
+
+      case 'marcarPedidoEnCamino':
+        result = marcarPedidoEnCamino(payload, payload.token);
+        break;
+
+      case 'quitarPedidoEnCamino':
+        result = quitarPedidoEnCamino(payload.idInsumo, payload.provincia);
+        break;
+
       case 'limpiarMovimientosDePrueba':
         var sessionLimpieza = verificarSesion(payload.token);
         if (!sessionLimpieza || sessionLimpieza.provincia) {
@@ -1676,5 +1692,179 @@ function obtenerHistorialMovimientos(limit) {
   });
 
   return crearRespuesta(true, movimientos.slice(0, limit || 20));
+}
+
+// ============================================================================
+// Pedidos en Camino (Reposición y Faltantes)
+// ============================================================================
+
+/**
+ * Obtiene la hoja de Pedidos en Camino, creándola si no existe
+ */
+function getHojaPedidosEnCamino() {
+  var ss = getSpreadsheet();
+  var nombre = CONFIG.HOJAS.PEDIDOS_EN_CAMINO || 'PEDIDOS_EN_CAMINO';
+  var hoja = ss.getSheetByName(nombre);
+  if (!hoja) {
+    hoja = ss.insertSheet(nombre);
+    var columnas = [
+      'ID Insumo',
+      'Insumo',
+      'Provincia',
+      'Unidad',
+      'Cantidad Pedida',
+      'Fecha/Hora Pedido',
+      'Responsable',
+      'Proveedor',
+      'Notas'
+    ];
+    hoja.getRange(1, 1, 1, columnas.length).setValues([columnas]);
+    var headerRange = hoja.getRange(1, 1, 1, columnas.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#e0f2fe'); // Sky 100
+    headerRange.setFontColor('#0369a1'); // Sky 700
+    hoja.setFrozenRows(1);
+    for (var c = 1; c <= columnas.length; c++) {
+      hoja.autoResizeColumn(c);
+    }
+  }
+  return hoja;
+}
+
+/**
+ * Obtiene todos los pedidos en camino
+ */
+function obtenerPedidosEnCamino(provincia) {
+  var hoja = getHojaPedidosEnCamino();
+  var lastRow = hoja.getLastRow();
+  var pedidos = [];
+  if (lastRow > 1) {
+    var data = hoja.getRange(2, 1, lastRow - 1, 9).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var idIns = String(row[0] || '').trim();
+      var ins = String(row[1] || '').trim();
+      var prov = String(row[2] || '').trim();
+      if (!idIns || !prov) continue;
+      if (provincia && prov.toLowerCase() !== String(provincia).trim().toLowerCase()) {
+        continue;
+      }
+      pedidos.push({
+        idInsumo: idIns,
+        insumo: ins,
+        provincia: prov,
+        unidad: String(row[3] || 'u').trim(),
+        cantidadPedida: parseNumeroSeguro(row[4]),
+        fechaPedido: String(row[5] || ''),
+        responsable: String(row[6] || ''),
+        proveedor: String(row[7] || ''),
+        notas: String(row[8] || '')
+      });
+    }
+  }
+  return crearRespuesta(true, pedidos);
+}
+
+/**
+ * Marca o actualiza un insumo como pedido / en camino en Google Sheets
+ */
+function marcarPedidoEnCamino(payload, token) {
+  var session = verificarSesion(token);
+  var responsable = session ? session.responsableNombre : (payload.responsable || 'Pañol');
+  var idInsumo = String(payload.idInsumo || '').trim();
+  var insumo = String(payload.insumo || '').trim();
+  var provincia = String(payload.provincia || '').trim();
+  var unidad = String(payload.unidad || 'u').trim();
+  var cantidad = parseNumeroSeguro(payload.cantidadPedida || payload.cantidad);
+  var fechaHora = payload.fechaPedido || getFechaHoraActual();
+  var proveedor = String(payload.proveedor || '').trim();
+  var notas = String(payload.notas || '').trim();
+
+  if (!idInsumo || !provincia) {
+    return crearRespuesta(false, null, 'ID Insumo y Provincia son obligatorios.', 'DATOS_INVALIDOS');
+  }
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var hoja = getHojaPedidosEnCamino();
+    var lastRow = hoja.getLastRow();
+    var rowIndex = -1;
+
+    if (lastRow > 1) {
+      var data = hoja.getRange(2, 1, lastRow - 1, 3).getValues();
+      for (var i = 0; i < data.length; i++) {
+        if (String(data[i][0]).trim() === idInsumo && String(data[i][2]).trim().toLowerCase() === provincia.toLowerCase()) {
+          rowIndex = i + 2;
+          break;
+        }
+      }
+    }
+
+    var filaData = [
+      idInsumo,
+      insumo,
+      provincia,
+      unidad,
+      cantidad,
+      fechaHora,
+      responsable,
+      proveedor,
+      notas
+    ];
+
+    if (rowIndex > 1) {
+      hoja.getRange(rowIndex, 1, 1, 9).setValues([filaData]);
+    } else {
+      hoja.appendRow(filaData);
+    }
+
+    return crearRespuesta(true, {
+      idInsumo: idInsumo,
+      insumo: insumo,
+      provincia: provincia,
+      unidad: unidad,
+      cantidadPedida: cantidad,
+      fechaPedido: fechaHora,
+      responsable: responsable,
+      proveedor: proveedor,
+      notas: notas
+    }, 'Pedido en camino registrado correctamente en Google Sheets.');
+  } catch (err) {
+    return crearRespuesta(false, null, 'Error guardando pedido: ' + err.message, 'ERROR_LOCK');
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+/**
+ * Quita un pedido en camino en Google Sheets (al ingresar mercadería o cancelarlo)
+ */
+function quitarPedidoEnCamino(idInsumo, provincia) {
+  var id = String(idInsumo || '').trim();
+  var prov = String(provincia || '').trim().toLowerCase();
+  if (!id || !prov) {
+    return crearRespuesta(false, null, 'ID Insumo y Provincia son obligatorios.');
+  }
+
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    var hoja = getHojaPedidosEnCamino();
+    var lastRow = hoja.getLastRow();
+    if (lastRow > 1) {
+      var data = hoja.getRange(2, 1, lastRow - 1, 3).getValues();
+      for (var i = data.length - 1; i >= 0; i--) {
+        if (String(data[i][0]).trim() === id && String(data[i][2]).trim().toLowerCase() === prov) {
+          hoja.deleteRow(i + 2);
+        }
+      }
+    }
+    return crearRespuesta(true, null, 'Pedido retirado de en camino.');
+  } catch (err) {
+    return crearRespuesta(false, null, 'Error quitando pedido: ' + err.message);
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
 }
 
