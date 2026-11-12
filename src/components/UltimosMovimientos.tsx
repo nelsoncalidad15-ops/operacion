@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { MovimientoHistorial, Colaborador } from '../types';
 import { PROVINCIAS, SECTORES } from '../data/config';
+import { enPeriodo } from '../utils/indicadores';
 import { api } from '../services/api';
 import { ReporteHistorialModal, formatFechaHora } from './ReporteHistorialModal';
 
@@ -30,7 +31,9 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
   const [filtroColaborador, setFiltroColaborador] = useState<string>('');
   const [filtroTipo, setFiltroTipo] = useState<string>('');
   const [filtroMes, setFiltroMes] = useState<string>(''); // e.g. "2026-10" o ""
-  const [filtroFecha, setFiltroFecha] = useState<string>(''); // e.g. "2026-10-19" o ""
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const rangoInvalido = Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta);
   const [busqueda, setBusqueda] = useState<string>('');
 
   // Modal de reporte formal imprimible
@@ -158,10 +161,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
         return false;
       }
 
-      // Filtro de Fecha puntual (ej: "2026-10-19")
-      if (filtroFecha && !m.fechaHora?.startsWith(filtroFecha)) {
-        return false;
-      }
+      if (!enPeriodo(m.fechaHora, fechaDesde, fechaHasta)) return false;
 
       // Búsqueda por texto (insumo, persona, sector, id)
       if (busqueda.trim()) {
@@ -185,7 +185,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
     filtroSector,
     filtroColaborador,
     filtroMes,
-    filtroFecha,
+    fechaDesde,
+    fechaHasta,
     busqueda,
   ]);
 
@@ -204,7 +205,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
   }, [movimientosFiltrados]);
 
   const hayFiltrosActivos = Boolean(
-    filtroSector || filtroColaborador || filtroTipo || filtroMes || filtroFecha || busqueda.trim()
+    filtroSector || filtroColaborador || filtroTipo || filtroMes || fechaDesde || fechaHasta || busqueda.trim()
   );
 
   const handleLimpiarFiltros = () => {
@@ -212,7 +213,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
     setFiltroColaborador('');
     setFiltroTipo('');
     setFiltroMes('');
-    setFiltroFecha('');
+    setFechaDesde('');
+    setFechaHasta('');
     setBusqueda('');
   };
 
@@ -257,7 +259,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
       [`Fecha de descarga: ${new Date().toLocaleString('es-AR')}`],
       [`Base: ${provinciaFija || provinciaFiltro || 'Todas'}`],
       [`Filtro Mes: ${mesActualLabel}`],
-      [`Filtro Fecha: ${filtroFecha || 'Todas'}`],
+      [`Desde: ${fechaDesde || '-'}`],
+      [`Hasta: ${fechaHasta || '-'}`],
       [`Área: ${filtroSector || 'Todas'}`],
       [`Colaborador: ${filtroColaborador || 'Todos'}`],
       [`Tipo: ${filtroTipo || 'Todos'}`],
@@ -353,7 +356,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
 
       {/* Barra de Filtros Interactiva */}
       <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-2xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
           {/* 1. Búsqueda por texto libre */}
           <div className="relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -423,7 +426,7 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
           <div>
             <select
               value={filtroMes}
-              onChange={(e) => setFiltroMes(e.target.value)}
+              onChange={(e) => { setFiltroMes(e.target.value); setFechaDesde(''); setFechaHasta(''); }}
               className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-700"
             >
               <option value="">Mes: Todos los meses</option>
@@ -435,26 +438,21 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
             </select>
           </div>
 
-          {/* 6. Filtro por Fecha Puntual */}
-          <div className="relative">
-            <input
-              type="date"
-              value={filtroFecha}
-              onChange={(e) => setFiltroFecha(e.target.value)}
-              title="Filtrar por fecha puntual (Día/Mes/Año)"
-              className="w-full text-xs py-1.5 px-2.5 rounded-lg border border-slate-200 bg-slate-50/50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-slate-400 font-medium text-slate-700"
-            />
-            {filtroFecha && (
-              <button
-                onClick={() => setFiltroFecha('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                title="Quitar filtro de fecha"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
         </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-medium text-slate-700">Desde
+            <input type="date" value={fechaDesde} max={fechaHasta || undefined}
+              onChange={(e) => { setFechaDesde(e.target.value); setFiltroMes(''); }}
+              className="block mt-1 rounded-lg border border-slate-200 px-3 py-2" />
+          </label>
+          <label className="text-xs font-medium text-slate-700">Hasta
+            <input type="date" value={fechaHasta} min={fechaDesde || undefined}
+              onChange={(e) => { setFechaHasta(e.target.value); setFiltroMes(''); }}
+              className="block mt-1 rounded-lg border border-slate-200 px-3 py-2" />
+          </label>
+          <p className="text-xs text-slate-500 pb-2">Incluye ambos días completos.</p>
+        </div>
+        {rangoInvalido && <p role="alert" className="text-sm text-red-700">La fecha Desde debe ser anterior o igual a Hasta.</p>}
 
         {/* Barra de Resumen / KPIs de Filtro */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
@@ -651,7 +649,8 @@ export const UltimosMovimientos: React.FC<{ provinciaFija?: string }> = ({ provi
           tipo: filtroTipo,
           mes: filtroMes,
           mesLabel: mesActivoLabel,
-          fecha: filtroFecha,
+          fechaDesde,
+          fechaHasta,
           busqueda,
         }}
       />

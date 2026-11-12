@@ -13,7 +13,8 @@ interface ReporteHistorialModalProps {
     tipo: string;
     mes: string;
     mesLabel?: string;
-    fecha?: string;
+    fechaDesde?: string;
+    fechaHasta?: string;
     busqueda: string;
   };
 }
@@ -110,7 +111,8 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
       [`Filtro Área: ${filtros.sector || 'Todas'}`],
       [`Filtro Colaborador: ${filtros.colaborador || 'Todos'}`],
       [`Filtro Mes: ${filtros.mesLabel || filtros.mes || 'Todos los meses'}`],
-      [`Filtro Fecha puntual: ${filtros.fecha || 'Todas'}`],
+      [`Desde: ${filtros.fechaDesde || '-'}`],
+      [`Hasta: ${filtros.fechaHasta || '-'}`],
       [`Filtro Tipo: ${filtros.tipo || 'Todos'}`],
       [`Registros: ${movimientos.length}`],
       [`Total Monto: $ ${Math.round(totalMonto)}`],
@@ -276,7 +278,7 @@ export const ReporteHistorialModal: React.FC<ReporteHistorialModalProps> = ({
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Mes / Período</span>
               <span className="font-bold text-slate-800">
-                {filtros.mesLabel || filtros.mes || (filtros.fecha ? `Fecha: ${filtros.fecha}` : 'Todos los meses')}
+                {filtros.mesLabel || filtros.mes || (filtros.fechaDesde || filtros.fechaHasta ? `${filtros.fechaDesde || 'Sin inicio'} al ${filtros.fechaHasta || 'Sin fin'}` : 'Todos los meses')}
               </span>
             </div>
             <div>

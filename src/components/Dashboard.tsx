@@ -21,6 +21,7 @@ import { PROVINCIAS, SECTORES } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 import { ModalRecepcionPedido } from './ModalRecepcionPedido';
+import { CostoLavado } from './CostoLavado';
 
 interface DashboardProps {
   session: AuthSession;
@@ -370,6 +371,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
       {loadError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{loadError}</div>}
+      <CostoLavado movimientos={movimientos} provincia={session.provincia || provinciaFiltro} cargando={isLoading} error={loadError} />
       {/* Header Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
@@ -694,7 +696,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
                                   if (onNavigateToIngreso) {
                                     onNavigateToIngreso({
                                       insumoId: item.id,
-                                      cantidad: item.pedidoEnCamino.cantidadPedida || item.deficit || 1,
+                                      cantidad: item.pedidoEnCamino?.cantidadPedida || item.deficit || 1,
                                       provincia: item.provincia,
                                     });
                                   } else {
