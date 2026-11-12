@@ -447,7 +447,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
         <p className="text-xs text-slate-600" aria-live="polite">{periodoLabel} · {movimientosPeriodo.length} movimientos. Incluye ambos días completos.</p>
         <p className="text-xs text-slate-500">Se aplica a compras, retiros, consumos por sector y colaborador, insumos más retirados y costo por lavado. El stock, los faltantes y los pedidos en camino muestran la situación actual.</p>
       </section>
-      <CostoLavado movimientos={movimientosPeriodo} provincia={session.provincia || provinciaFiltro} cargando={isLoading} error={loadError} mes={mesFiltro} periodo={mesFiltro ? undefined : periodo} periodoLabel={periodoLabel} />
+      <CostoLavado movimientos={movimientosPeriodo} provincia={session.provincia || provinciaFiltro} cargando={isLoading} error={loadError} mes={mesFiltro} periodo={mesFiltro ? undefined : periodo} periodoLabel={periodoLabel} onChangeMes={m => { setMesFiltro(m); setFechaDesde(''); setFechaHasta(''); }} />
 
       {/* Alerta Destacada si hay Insumos Críticos Pendientes */}
       {metrics.criticosPendientes > 0 && (

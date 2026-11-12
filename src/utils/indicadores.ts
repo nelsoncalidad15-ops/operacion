@@ -24,20 +24,20 @@ export function enPeriodo(fechaHora: string, desde = '', hasta = '') {
 }
 
 export function costoLavado(movimientos: MovimientoHistorial[], mes: string, provincia: string, pasos: number, periodo?: { desde: string; hasta: string }) {
-  const importes = { Caucho: 0, Desengrasante: 0, Shampoo: 0 };
+  const importes: Record<string, number> = {};
   let retiros = 0;
   let sinCosto = 0;
   for (const m of movimientos) {
     const fechaValida = periodo ? enPeriodo(m.fechaHora, periodo.desde, periodo.hasta) : mes && normalizarFechaHora(m.fechaHora)?.startsWith(`${mes}-`);
+    const sector = (m.sector || m.sectorOProveedor || '').trim();
     if (!fechaValida || m.tipo !== 'SALIDA' ||
       !['AUTORIZADO', 'AUTORIZADO PARCIAL'].includes(m.estado) ||
+      !/\blavad(?:ero|o)\b/i.test(sector) ||
       (provincia && m.provincia.toLowerCase() !== provincia.toLowerCase())) continue;
-    const nombre = m.insumo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    const grupo = /\bcaucho\b/.test(nombre) ? 'Caucho' : /\bdesengrasante\b/.test(nombre) ? 'Desengrasante' : /\b(shampoo|shampu|champu)\b/.test(nombre) ? 'Shampoo' : null;
-    if (!grupo) continue;
+    const insumo = (m.insumo || 'Sin nombre').trim();
     retiros++;
     if (!Number.isFinite(m.monto) || m.monto <= 0) { sinCosto++; continue; }
-    importes[grupo] += m.monto;
+    importes[insumo] = (importes[insumo] || 0) + m.monto;
   }
   const total = Object.values(importes).reduce((a, b) => a + b, 0);
   const ajustados = Number.isSafeInteger(pasos) && pasos > 0 ? pasos * 1.1 : 0;
