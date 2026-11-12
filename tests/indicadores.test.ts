@@ -28,19 +28,26 @@ test('período inclusivo, abierto, entre meses y rango invertido', () => {
   assert.equal(enPeriodo('', '2026-10-01'), false);
 });
 
-test('suma todos los insumos de Lavadero y divide por pasos más 10%, respetando período, sector, base y estado', () => {
-  const resultado = costoLavado([
+test('permite elegir entre los 3 insumos principales o todo Lavadero', () => {
+  const lista = [
     retiro(), retiro({ insumo: 'Caucho líquido', monto: 1100 }),
     retiro({ insumo: 'Desengrasante', estado: 'AUTORIZADO PARCIAL', monto: 1100 }),
     retiro({ insumo: 'Rejilla 2 hilos', monto: 1100 }),
     retiro({ insumo: 'Cepillo Cercrin', monto: 1100 }),
     ...['PENDIENTE', 'RECHAZADO', 'CANCELADO'].map(estado => retiro({ estado })),
     retiro({ tipo: 'INGRESO' }), retiro({ provincia: 'Salta' }),
-    retiro({ fechaHora: '2026-11-01' }), retiro({ insumo: 'Caucho', sectorOProveedor: 'Taller', sector: 'Taller' }),
-  ], '2026-10', 'Jujuy', 100);
-  assert.equal(resultado.total, 5500);
-  assert.equal(resultado.retiros, 5);
-  assert.ok(Math.abs(resultado.promedio! - 50) < 1e-10);
+    retiro({ fechaHora: '2026-11-01' }), retiro({ insumo: 'Aceite', sectorOProveedor: 'Taller', sector: 'Taller' }),
+  ];
+  const soloPrincipales = costoLavado(lista, '2026-10', 'Jujuy', 100, undefined, 'principales');
+  assert.equal(soloPrincipales.total, 3300);
+  assert.equal(soloPrincipales.retiros, 3);
+  assert.ok(Math.abs(soloPrincipales.promedio! - 30) < 1e-10);
+
+  const todoLavadero = costoLavado(lista, '2026-10', 'Jujuy', 100, undefined, 'todo');
+  assert.equal(todoLavadero.total, 5500);
+  assert.equal(todoLavadero.retiros, 5);
+  assert.ok(Math.abs(todoLavadero.promedio! - 50) < 1e-10);
+
   const porRango = costoLavado([
     retiro({ fechaHora: '2026-10-15 10:00:00', monto: 2200 }),
     retiro({ fechaHora: '2026-11-05 10:00:00', monto: 1100 }),
