@@ -21,6 +21,7 @@ import { PROVINCIAS, SECTORES } from '../data/config';
 import { api } from '../services/api';
 import { ReporteFaltantesModal } from './ReporteFaltantesModal';
 import { ModalRecepcionPedido } from './ModalRecepcionPedido';
+import { enPeriodo, normalizarFechaHora } from '../utils/indicadores';
 import { CostoLavado } from './CostoLavado';
 
 interface DashboardProps {
@@ -42,7 +43,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
 
   // Filtros para el análisis de consumo por colaborador
   const [colabSectorFiltro, setColabSectorFiltro] = useState<string>('');
-  const [colabPeriodoFiltro, setColabPeriodoFiltro] = useState<string>('todos');
+  const [mesFiltro, setMesFiltro] = useState(() => normalizarFechaHora(new Date().toISOString()).slice(0, 7));
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const rangoInvalido = Boolean(fechaDesde && fechaHasta && fechaDesde > fechaHasta);
+  const periodo = useMemo(() => ({ desde: fechaDesde, hasta: fechaHasta }), [fechaDesde, fechaHasta]);
+  const periodoLabel = mesFiltro ? `Mes: ${mesFiltro}` : fechaDesde || fechaHasta ? `${fechaDesde || 'Inicio'} al ${fechaHasta || 'Sin fin'}` : 'Todo el historial';
+  const movimientosPeriodo = useMemo(() => movimientos.filter(m =>
+    mesFiltro ? normalizarFechaHora(m.fechaHora).startsWith(`${mesFiltro}-`) : enPeriodo(m.fechaHora, fechaDesde, fechaHasta)
+  ), [movimientos, mesFiltro, fechaDesde, fechaHasta]);
   const [colabOrden, setColabOrden] = useState<'mas' | 'menos'>('mas');
 
   const loadData = async () => {
@@ -138,8 +147,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
   };
 
   const metrics = useMemo(() => {
-    const ingresos = movimientos.filter((m) => m.tipo === 'INGRESO' && /(?:^Compra$|\(Compra\)\s*$)/i.test(m.sectorOProveedor));
-    const salidas = movimientos.filter((m) => m.tipo === 'SALIDA');
+    const ingresos = movimientosPeriodo.filter((m) => m.tipo === 'INGRESO' && /(?:^Compra$|\(Compra\)\s*$)/i.test(m.sectorOProveedor));
+    const salidas = movimientosPeriodo.filter((m) => m.tipo === 'SALIDA');
     const totalComprasMonto = ingresos.reduce((acc, curr) => acc + (curr.monto || 0), 0);
     const salidasValidas = salidas.filter((s) => s.estado === 'AUTORIZADO' || s.estado === 'AUTORIZADO PARCIAL');
 
@@ -262,23 +271,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       maxSectorMonto,
       porCategoria,
     };
-  }, [stockList, movimientos, pedidosEnCamino, mostrarTodosFaltantes]);
+  }, [stockList, movimientosPeriodo, pedidosEnCamino, mostrarTodosFaltantes]);
 
   const consumoColaboradores = useMemo(() => {
-    const ahora = new Date();
-    const hoyStr = ahora.toISOString().slice(0, 10);
-    const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const esteMesStr = hoyStr.slice(0, 7);
-
     // Filtrar salidas válidas para el análisis
-    const salidasValidas = movimientos.filter((m) => {
+    const salidasValidas = movimientosPeriodo.filter((m) => {
       if (m.tipo !== 'SALIDA') return false;
       if (m.estado !== 'AUTORIZADO' && m.estado !== 'AUTORIZADO PARCIAL') return false;
-
-      // Filtro de período
-      const fechaCorta = (m.fechaHora || '').slice(0, 10);
-      if (colabPeriodoFiltro === 'este_mes' && !fechaCorta.startsWith(esteMesStr)) return false;
-      if (colabPeriodoFiltro === '30dias' && fechaCorta < hace30Dias) return false;
 
       // Filtro de sector
       const sectorMov = (m.sector || m.sectorOProveedor || '').toLowerCase();
@@ -366,12 +365,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
       promedioConsumo,
       colaboradoresActivos: list.length,
     };
-  }, [movimientos, colabSectorFiltro, colabPeriodoFiltro, colabOrden]);
+  }, [movimientosPeriodo, colabSectorFiltro, colabOrden]);
 
   return (
     <div className="max-w-6xl mx-auto py-6 px-4 space-y-6">
       {loadError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{loadError}</div>}
-      <CostoLavado movimientos={movimientos} provincia={session.provincia || provinciaFiltro} cargando={isLoading} error={loadError} />
+
       {/* Header Principal */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
@@ -428,6 +427,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
           </button>}
         </div>
       </div>
+
+      <section className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+        <h2 className="text-sm font-bold">Período del Dashboard</h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-xs font-medium">Mes
+            <input type="month" value={mesFiltro} onChange={e => { setMesFiltro(e.target.value); setFechaDesde(''); setFechaHasta(''); }} className="block mt-1 border border-slate-200 rounded-lg px-3 py-2" />
+          </label>
+          <label className="text-xs font-medium">Desde
+            <input type="date" value={fechaDesde} max={fechaHasta || undefined} onChange={e => { setFechaDesde(e.target.value); setMesFiltro(''); }} className="block mt-1 border border-slate-200 rounded-lg px-3 py-2" />
+          </label>
+          <label className="text-xs font-medium">Hasta
+            <input type="date" value={fechaHasta} min={fechaDesde || undefined} onChange={e => { setFechaHasta(e.target.value); setMesFiltro(''); }} className="block mt-1 border border-slate-200 rounded-lg px-3 py-2" />
+          </label>
+          <button onClick={() => { setMesFiltro(normalizarFechaHora(new Date().toISOString()).slice(0, 7)); setFechaDesde(''); setFechaHasta(''); }} className="text-xs border rounded-lg px-3 py-2">Este mes</button>
+          <button onClick={() => { setMesFiltro(''); setFechaDesde(''); setFechaHasta(''); }} className="text-xs border rounded-lg px-3 py-2">Todo el historial</button>
+        </div>
+        {rangoInvalido && <p role="alert" className="text-sm text-red-700">La fecha Desde debe ser anterior o igual a Hasta.</p>}
+        <p className="text-xs text-slate-600" aria-live="polite">{periodoLabel} · {movimientosPeriodo.length} movimientos. Incluye ambos días completos.</p>
+        <p className="text-xs text-slate-500">Se aplica a compras, retiros, consumos por sector y colaborador, insumos más retirados y costo por lavado. El stock, los faltantes y los pedidos en camino muestran la situación actual.</p>
+      </section>
+      <CostoLavado movimientos={movimientosPeriodo} provincia={session.provincia || provinciaFiltro} cargando={isLoading} error={loadError} mes={mesFiltro} periodo={mesFiltro ? undefined : periodo} periodoLabel={periodoLabel} />
 
       {/* Alerta Destacada si hay Insumos Críticos Pendientes */}
       {metrics.criticosPendientes > 0 && (
@@ -914,16 +934,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ session, onNavigateToIngre
               ))}
             </select>
 
-            {/* Filtro Período */}
-            <select
-              value={colabPeriodoFiltro}
-              onChange={(e) => setColabPeriodoFiltro(e.target.value)}
-              className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 bg-white text-slate-700 focus:outline-none font-medium shadow-2xs"
-            >
-              <option value="todos">Todo el historial</option>
-              <option value="este_mes">Este mes</option>
-              <option value="30dias">Últimos 30 días</option>
-            </select>
+
           </div>
         </div>
 

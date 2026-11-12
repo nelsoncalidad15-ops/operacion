@@ -23,12 +23,13 @@ export function enPeriodo(fechaHora: string, desde = '', hasta = '') {
     (!desde || fecha >= desde) && (!hasta || fecha <= hasta));
 }
 
-export function costoLavado(movimientos: MovimientoHistorial[], mes: string, provincia: string, pasos: number) {
+export function costoLavado(movimientos: MovimientoHistorial[], mes: string, provincia: string, pasos: number, periodo?: { desde: string; hasta: string }) {
   const importes = { Caucho: 0, Desengrasante: 0, Shampoo: 0 };
   let retiros = 0;
   let sinCosto = 0;
   for (const m of movimientos) {
-    if (!mes || !normalizarFechaHora(m.fechaHora)?.startsWith(`${mes}-`) || m.tipo !== 'SALIDA' ||
+    const fechaValida = periodo ? enPeriodo(m.fechaHora, periodo.desde, periodo.hasta) : mes && normalizarFechaHora(m.fechaHora)?.startsWith(`${mes}-`);
+    if (!fechaValida || m.tipo !== 'SALIDA' ||
       !['AUTORIZADO', 'AUTORIZADO PARCIAL'].includes(m.estado) ||
       (provincia && m.provincia.toLowerCase() !== provincia.toLowerCase())) continue;
     const nombre = m.insumo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

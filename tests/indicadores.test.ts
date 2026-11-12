@@ -39,6 +39,13 @@ test('suma los tres insumos y divide por pasos más 10%, respetando mes, base y 
   assert.equal(resultado.total, 3300);
   assert.equal(resultado.retiros, 3);
   assert.ok(Math.abs(resultado.promedio! - 30) < 1e-10);
+  const porRango = costoLavado([
+    retiro({ fechaHora: '2026-10-15 10:00:00', monto: 2200 }),
+    retiro({ fechaHora: '2026-11-05 10:00:00', monto: 1100 }),
+  ], '', 'Jujuy', 100, { desde: '2026-10-01', hasta: '2026-10-31' });
+  assert.equal(porRango.total, 2200);
+  assert.equal(porRango.retiros, 1);
+  assert.ok(Math.abs(porRango.promedio! - 20) < 1e-10);
 });
 
 test('no muestra promedio con pasos inválidos, sin movimientos o sin valorización', () => {
