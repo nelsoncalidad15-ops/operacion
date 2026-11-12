@@ -1,12 +1,21 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { enPeriodo, costoLavado } from '../src/utils/indicadores.ts';
+import { enPeriodo, costoLavado, normalizarFechaHora } from '../src/utils/indicadores.ts';
 import type { MovimientoHistorial } from '../src/types/index.ts';
 
 const retiro = (extra: Partial<MovimientoHistorial> = {}): MovimientoHistorial => ({
   id: '1', fechaHora: '2026-10-31 23:59:59', tipo: 'SALIDA', insumo: 'Shampoo concentrado',
   unidad: 'L', provincia: 'Jujuy', cantidad: 10, persona: 'Operario', sectorOProveedor: 'Lavado',
   estado: 'AUTORIZADO', monto: 1100, ...extra,
+});
+
+test('fechas reales de Google Sheets y cambio de mes en hora argentina', () => {
+  const fecha = 'Wed Oct 14 2026 08:46:31 GMT-0300 (hora estándar de Argentina)';
+  assert.equal(normalizarFechaHora(fecha), '2026-10-14 08:46:31');
+  assert.equal(normalizarFechaHora('2026-11-01T01:00:00.000Z'), '2026-10-31 22:00:00');
+  assert.equal(normalizarFechaHora('2026-10-01 00:00:00'), '2026-10-01 00:00:00');
+  assert.ok(enPeriodo(fecha, '2026-10-01', '2026-10-31'));
+  assert.equal(costoLavado([retiro({ fechaHora: fecha })], '2026-10', 'Jujuy', 100).retiros, 1);
 });
 
 test('período inclusivo, abierto, entre meses y rango invertido', () => {

@@ -1,10 +1,24 @@
 import type { MovimientoHistorial } from '../types';
 
+export function normalizarFechaHora(valor: string): string {
+  if (!valor) return '';
+  // Conservar las fechas locales existentes; convertir las que tienen zona horaria.
+  if (/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(valor)) return valor.replace('T', ' ');
+  const fecha = new Date(valor.replace(/\s*\([^)]*\)\s*$/, ''));
+  if (Number.isNaN(fecha.getTime())) return valor;
+  const partes = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(fecha);
+  const p = (tipo: string) => partes.find(parte => parte.type === tipo)?.value;
+  return `${p('year')}-${p('month')}-${p('day')} ${p('hour')}:${p('minute')}:${p('second')}`;
+}
+
 // Las fechas del historial ya están expresadas en la hora local de la base.
 export function enPeriodo(fechaHora: string, desde = '', hasta = '') {
   if (desde && hasta && desde > hasta) return false;
   if (!desde && !hasta) return true;
-  const fecha = fechaHora?.slice(0, 10);
+  const fecha = normalizarFechaHora(fechaHora)?.slice(0, 10);
   return Boolean(fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha) &&
     (!desde || fecha >= desde) && (!hasta || fecha <= hasta));
 }
@@ -14,7 +28,7 @@ export function costoLavado(movimientos: MovimientoHistorial[], mes: string, pro
   let retiros = 0;
   let sinCosto = 0;
   for (const m of movimientos) {
-    if (!mes || !m.fechaHora?.startsWith(`${mes}-`) || m.tipo !== 'SALIDA' ||
+    if (!mes || !normalizarFechaHora(m.fechaHora)?.startsWith(`${mes}-`) || m.tipo !== 'SALIDA' ||
       !['AUTORIZADO', 'AUTORIZADO PARCIAL'].includes(m.estado) ||
       (provincia && m.provincia.toLowerCase() !== provincia.toLowerCase())) continue;
     const nombre = m.insumo.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();

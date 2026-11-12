@@ -18,6 +18,8 @@ import {
   COLABORADORES,
 } from '../data/config';
 
+import { normalizarFechaHora } from '../utils/indicadores';
+
 const STORAGE_KEY_INSUMOS = 'ci_insumos_v1';
 const STORAGE_KEY_INGRESOS = 'ci_ingresos_v1';
 const STORAGE_KEY_SALIDAS = 'ci_salidas_v1';
@@ -1005,7 +1007,12 @@ class ApiService {
   // ==========================================
   public async getUltimosMovimientos(limit = 20): Promise<ApiResponse<MovimientoHistorial[]>> {
     if (this.isLiveConnected()) {
-      return await this.callAppsScript<MovimientoHistorial[]>('getUltimosMovimientos', { limit });
+      const respuesta = await this.callAppsScript<MovimientoHistorial[]>('getUltimosMovimientos', { limit });
+      if (respuesta.ok && respuesta.data) {
+        respuesta.data = respuesta.data.map(m => ({ ...m, fechaHora: normalizarFechaHora(m.fechaHora) }))
+          .sort((a, b) => b.fechaHora.localeCompare(a.fechaHora));
+      }
+      return respuesta;
     }
 
     const insumos = this.getStoredInsumos();
